@@ -60,11 +60,20 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                       Text('Delivery #${widget.deliveryId}', style: Theme.of(context).textTheme.titleLarge),
                       Text('Status: ${delivery['status']}'),
                       Text('Created: $formattedDate'),
-                      Text('Recipient: ${delivery['recipientName']}'),
+                      const SizedBox(height: 16),
+                      Text('Sender Information:', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Name: ${delivery['senderName']}'),
+                      Text('Phone: ${delivery['senderPhone']}'),
+                      const SizedBox(height: 16),
+                      Text('Recipient Information:', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Name: ${delivery['recipientName']}'),
                       Text('Phone: ${delivery['recipientPhone']}'),
                       const SizedBox(height: 16),
                       Text('Items:', style: Theme.of(context).textTheme.titleMedium),
                       ...(delivery['items'] as List).map((item) => Text('- ${item['description']}')),
+                      const SizedBox(height: 16),
+                      Text('Delivery Progress:', style: Theme.of(context).textTheme.titleMedium),
+                      _buildDeliveryProgress(delivery),
                     ],
                   ),
                 ),
@@ -151,6 +160,37 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         },
       ),
     );
+  }
+
+  Widget _buildDeliveryProgress(Map<String, dynamic> delivery) {
+    final List<Map<String, dynamic>> steps = [
+      {'status': 'pending', 'title': 'Order Placed', 'icon': Icons.shopping_cart},
+      {'status': 'accepted', 'title': 'Order Accepted', 'icon': Icons.check_circle},
+      {'status': 'picked_up', 'title': 'Package Picked Up', 'icon': Icons.local_shipping},
+      {'status': 'delivering', 'title': 'Out for Delivery', 'icon': Icons.directions_bike},
+      {'status': 'completed', 'title': 'Delivered', 'icon': Icons.done_all},
+    ];
+
+    return Column(
+      children: steps.map((step) {
+        final bool isCompleted = _isStepCompleted(delivery['status'], step['status']);
+        return ListTile(
+          leading: Icon(
+            step['icon'] as IconData,
+            color: isCompleted ? Colors.green : Colors.grey,
+          ),
+          title: Text(step['title'] as String),
+          trailing: isCompleted
+              ? const Icon(Icons.check, color: Colors.green)
+              : null,
+        );
+      }).toList(),
+    );
+  }
+
+  bool _isStepCompleted(String currentStatus, String stepStatus) {
+    final List<String> orderOfStatus = ['pending', 'accepted', 'picked_up', 'delivering', 'completed'];
+    return orderOfStatus.indexOf(currentStatus) >= orderOfStatus.indexOf(stepStatus);
   }
 
   @override

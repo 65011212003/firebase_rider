@@ -50,7 +50,8 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
             itemCount: deliveries.length,
             itemBuilder: (context, index) {
               final delivery = deliveries[index].data() as Map<String, dynamic>;
-              return DeliveryHistoryItem(delivery: delivery);
+              final deliveryId = deliveries[index].id;
+              return DeliveryHistoryItem(delivery: delivery, deliveryId: deliveryId);
             },
           );
         },
@@ -61,10 +62,12 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
 
 class DeliveryHistoryItem extends StatelessWidget {
   final Map<String, dynamic> delivery;
+  final String deliveryId;
 
   const DeliveryHistoryItem({
     Key? key,
     required this.delivery,
+    required this.deliveryId,
   }) : super(key: key);
 
   @override
@@ -88,7 +91,7 @@ class DeliveryHistoryItem extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DeliveryDetailPage(deliveryId: delivery['id'])),
+            MaterialPageRoute(builder: (context) => DeliveryDetailPage(deliveryId: deliveryId)),
           );
         },
       ),
