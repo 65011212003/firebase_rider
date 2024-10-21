@@ -88,7 +88,7 @@ class DeliveryHistoryItem extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DeliveryDetailPage(delivery: delivery)),
+            MaterialPageRoute(builder: (context) => DeliveryDetailPage(deliveryId: delivery['id'])),
           );
         },
       ),
