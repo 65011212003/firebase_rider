@@ -7,6 +7,7 @@ import 'register_page.dart';
 import 'send_delivery_page.dart';
 import 'delivery_history_page.dart';
 import 'rider_home_page.dart';
+import 'receive_delivery_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -86,9 +87,6 @@ class MyHomePage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('User Profile'),
-      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -117,13 +115,31 @@ class MyHomePage extends StatelessWidget {
               return const Center(child: Text('User data not found', style: TextStyle(color: Colors.white)));
             }
 
-            return SingleChildScrollView(
-              child: Center(
+            return SafeArea(
+              child: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'User Profile',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(builder: (context) => const LoginPage()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
                       if (userData['imageUrl'] != null)
                         CircleAvatar(
                           radius: 50,
@@ -133,16 +149,13 @@ class MyHomePage extends StatelessWidget {
                       Text(
                         'Welcome, ${userData['name'] ?? phone}!',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
                       _buildInfoText(context, 'Phone', userData['phone'] ?? 'N/A'),
                       _buildInfoText(context, 'Address', userData['address'] ?? 'N/A'),
                       if (userData['location'] != null)
                         _buildInfoText(context, 'Location', '${userData['location'].latitude}, ${userData['location'].longitude}'),
-                      if (isRider) ...[
-                        _buildInfoText(context, 'Vehicle Type', userData['vehicleType'] ?? 'N/A'),
-                        _buildInfoText(context, 'License Number', userData['licenseNumber'] ?? 'N/A'),
-                      ],
                       const SizedBox(height: 20),
                       if (!isRider) ...[
                         ElevatedButton(
@@ -153,6 +166,7 @@ class MyHomePage extends StatelessWidget {
                             );
                           },
                           child: const Text('Send Delivery'),
+                          style: _buttonStyle(),
                         ),
                         const SizedBox(height: 10),
                         ElevatedButton(
@@ -163,18 +177,21 @@ class MyHomePage extends StatelessWidget {
                             );
                           },
                           child: const Text('Delivery History'),
+                          style: _buttonStyle(),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => ReceiveDeliveryPage(userId: phone)),
+                            );
+                          },
+                          child: const Text('Receive Delivery'),
+                          style: _buttonStyle(),
                         ),
                         const SizedBox(height: 20),
                       ],
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (context) => const LoginPage()),
-                          );
-                        },
-                        child: const Text('Sign Out'),
-                      ),
-                      const SizedBox(height: 10),
                       ElevatedButton(
                         onPressed: () {
                           Navigator.push(
@@ -183,6 +200,7 @@ class MyHomePage extends StatelessWidget {
                           );
                         },
                         child: const Text('Edit Profile'),
+                        style: _buttonStyle(),
                       ),
                     ],
                   ),
@@ -198,13 +216,23 @@ class MyHomePage extends StatelessWidget {
   Widget _buildInfoText(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text('$label: ', style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white)),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white), textAlign: TextAlign.center),
         ],
       ),
+    );
+  }
+
+  ButtonStyle _buttonStyle() {
+    return ElevatedButton.styleFrom(
+      foregroundColor: Colors.purple,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

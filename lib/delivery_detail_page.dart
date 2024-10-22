@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'dart:math' show cos, sqrt, asin;
 
 class DeliveryDetailPage extends StatefulWidget {
   final String deliveryId;
@@ -74,7 +76,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                         _buildInfoSection('Recipient Information:', delivery, 'recipientName', 'recipientPhone'),
                         const SizedBox(height: 16),
                         const Text('Items:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ...(delivery['items'] as List).map((item) => Text('- ${item['description']}', style: const TextStyle(color: Colors.white))),
+                        ...(delivery['items'] as List).map((item) => _buildItemWidget(item)),
                         const SizedBox(height: 16),
                         const Text('Delivery Progress:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                         _buildDeliveryProgress(delivery),
@@ -83,79 +85,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                   ),
                   SizedBox(
                     height: 300,
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(
-                          (pickupLocation.latitude + deliveryLocation.latitude) / 2,
-                          (pickupLocation.longitude + deliveryLocation.longitude) / 2,
-                        ),
-                        initialZoom: 12,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          subdomains: const ['a', 'b', 'c'],
-                        ),
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: [pickupLocation, deliveryLocation],
-                              color: Colors.blue,
-                              strokeWidth: 3.0,
-                            ),
-                          ],
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              width: 40.0,
-                              height: 40.0,
-                              point: pickupLocation,
-                              child: const Icon(Icons.location_on, color: Colors.green, size: 40),
-                            ),
-                            Marker(
-                              width: 40.0,
-                              height: 40.0,
-                              point: deliveryLocation,
-                              child: const Icon(Icons.flag, color: Colors.red, size: 40),
-                            ),
-                            if (_riderLocation != null)
-                              Marker(
-                                width: 40.0,
-                                height: 40.0,
-                                point: _riderLocation!,
-                                child: const Icon(Icons.directions_bike, color: Colors.blue, size: 40),
-                              ),
-                          ],
-                        ),
-                        PopupMarkerLayer(
-                          options: PopupMarkerLayerOptions(
-                            popupController: _popupLayerController,
-                            markers: [
-                              Marker(
-                                point: pickupLocation,
-                                child: const Icon(Icons.location_on, color: Colors.green, size: 40),
-                              ),
-                              Marker(
-                                point: deliveryLocation,
-                                child: const Icon(Icons.flag, color: Colors.red, size: 40),
-                              ),
-                            ],
-                            popupDisplayOptions: PopupDisplayOptions(
-                              builder: (_, Marker marker) {
-                                return Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      marker.point == pickupLocation ? 'Pickup Location' : 'Delivery Location',
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: LocationMapWidget(
+                      pickupLocation: pickupLocation,
+                      deliveryLocation: deliveryLocation,
                     ),
                   ),
                 ],
@@ -175,6 +107,27 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         Text('Name: ${data[nameKey]}', style: const TextStyle(color: Colors.white)),
         Text('Phone: ${data[phoneKey]}', style: const TextStyle(color: Colors.white)),
         const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildItemWidget(Map<String, dynamic> item) {
+    return Row(
+      children: [
+        if (item['imageUrl'] != null)
+          Image.network(
+            item['imageUrl'],
+            width: 50,
+            height: 50,
+            fit: BoxFit.cover,
+          ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            '- ${item['description']}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
       ],
     );
   }
@@ -244,5 +197,85 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         }
       }
     });
+  }
+}
+
+class LocationMapWidget extends StatelessWidget {
+  final LatLng pickupLocation;
+  final LatLng deliveryLocation;
+
+  const LocationMapWidget({
+    Key? key,
+    required this.pickupLocation,
+    required this.deliveryLocation,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final center = LatLng(
+      (pickupLocation.latitude + deliveryLocation.latitude) / 2,
+      (pickupLocation.longitude + deliveryLocation.longitude) / 2,
+    );
+
+    final distance = calculateDistance(pickupLocation, deliveryLocation);
+    final zoom = calculateZoomLevel(distance);
+
+    return SizedBox(
+      height: 300,
+      child: FlutterMap(
+        options: MapOptions(
+          initialCenter: center,
+          initialZoom: zoom,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+          ),
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: [pickupLocation, deliveryLocation],
+                color: Colors.blue,
+                strokeWidth: 4.0,
+              ),
+            ],
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                width: 40.0,
+                height: 40.0,
+                point: pickupLocation,
+                child: const Icon(Icons.location_on, color: Colors.green, size: 40),
+              ),
+              Marker(
+                width: 40.0,
+                height: 40.0,
+                point: deliveryLocation,
+                child: const Icon(Icons.flag, color: Colors.red, size: 40),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  double calculateDistance(LatLng point1, LatLng point2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((point2.latitude - point1.latitude) * p)/2 + 
+            c(point1.latitude * p) * c(point2.latitude * p) * 
+            (1 - c((point2.longitude - point1.longitude) * p))/2;
+    return 12742 * asin(sqrt(a));
+  }
+
+  double calculateZoomLevel(double distance) {
+    if (distance < 1) return 14;
+    if (distance < 5) return 12;
+    if (distance < 10) return 11;
+    if (distance < 50) return 9;
+    return 8;
   }
 }
