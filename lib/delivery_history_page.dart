@@ -23,12 +23,12 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('deliveries')
-            .where('senderId', isEqualTo: widget.userId)
+            .where('recipientId', isEqualTo: widget.userId) // Show deliveries where user is recipient
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -38,7 +38,7 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
           final deliveries = snapshot.data!.docs;
 
           if (deliveries.isEmpty) {
-            return const Center(child: Text('No deliveries found.', style: TextStyle(color: Colors.white)));
+            return const Center(child: Text('No deliveries found.'));
           }
 
           return ListView.builder(
@@ -72,9 +72,27 @@ class DeliveryHistoryItem extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: Colors.white.withOpacity(0.9),
       child: ListTile(
-        title: Text('To: ${delivery['recipientName'] ?? 'Unknown'}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(delivery['senderId'])
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text('Loading sender...');
+            }
+            if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            }
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Text('From: Unknown');
+            }
+            final senderData = snapshot.data!.data() as Map<String, dynamic>;
+            return Text('From: ${senderData['name'] ?? 'Unknown'}', 
+                 style: const TextStyle(fontWeight: FontWeight.bold));
+          },
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

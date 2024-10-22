@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'dart:io';
 import 'dart:developer' as developer;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'location_service.dart';
 
 class RegisterPage extends StatefulWidget {
   final String? userPhone;
@@ -26,6 +27,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _addressController = TextEditingController();
   final _vehicleTypeController = TextEditingController();
   final _licenseNumberController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   XFile? _userImage;
   LatLng? _selectedLocation;
   String? _currentImageUrl;
@@ -114,46 +116,122 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate() && (_userImage != null || _currentImageUrl != null) && _selectedLocation != null) {
-      try {
-        String imageUrl = _currentImageUrl ?? '';
-        if (_userImage != null) {
-          final storageRef = FirebaseStorage.instance.ref().child('user_images/${_phoneController.text}');
-          final uploadTask = storageRef.putFile(File(_userImage!.path));
-          final snapshot = await uploadTask.whenComplete(() {});
-          imageUrl = await snapshot.ref.getDownloadURL();
-        }
+  Future<bool> _isPhoneNumberUnique(String phoneNumber) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection(widget.isRider ? 'riders' : 'users')
+          .doc(phoneNumber)
+          .get();
+      return !userDoc.exists;
+    } catch (e) {
+      developer.log('Error checking phone number: $e', name: 'RegisterPage');
+      return false;
+    }
+  }
 
-        final userData = {
-          'phone': _phoneController.text,
-          'password': _passwordController.text,
-          'name': _nameController.text,
-          'address': _addressController.text,
-          'imageUrl': imageUrl,
-          'location': GeoPoint(_selectedLocation!.latitude, _selectedLocation!.longitude),
-        };
+  Future<void> _getLocationFromAddress() async {
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an address first')),
+      );
+      return;
+    }
 
-        if (widget.isRider) {
-          userData['vehicleType'] = _vehicleTypeController.text;
-          userData['licenseNumber'] = _licenseNumberController.text;
-        }
-
-        await FirebaseFirestore.instance
-            .collection(widget.isRider ? 'riders' : 'users')
-            .doc(_phoneController.text)
-            .set(userData, SetOptions(merge: true));
-
+    try {
+      final location = await LocationService.getCoordinatesFromAddress(_addressController.text);
+      if (location != null) {
+        setState(() {
+          _selectedLocation = location;
+        });
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile saved successfully')),
-        );
-        Navigator.pop(context);
-      } catch (e) {
-        developer.log('Error saving profile: $e', name: 'RegisterPage');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          const SnackBar(content: Text('Could not find location for this address')),
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error getting location from address')),
+      );
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields correctly')),
+      );
+      return;
+    }
+
+    // Check for unique phone number only in non-edit mode
+    if (!_isEditMode) {
+      final isUnique = await _isPhoneNumberUnique(_phoneController.text);
+      if (!isUnique) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This phone number is already registered')),
+        );
+        return;
+      }
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+
+    if (_userImage == null && _currentImageUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a profile image')),
+      );
+      return;
+    }
+
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your location')),
+      );
+      return;
+    }
+
+    try {
+      String imageUrl = _currentImageUrl ?? '';
+      if (_userImage != null) {
+        final storageRef = FirebaseStorage.instance.ref().child('user_images/${_phoneController.text}');
+        final uploadTask = storageRef.putFile(File(_userImage!.path));
+        final snapshot = await uploadTask.whenComplete(() {});
+        imageUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      final userData = {
+        'phone': _phoneController.text,
+        'password': _passwordController.text,
+        'name': _nameController.text,
+        'address': _addressController.text,
+        'imageUrl': imageUrl,
+        'location': GeoPoint(_selectedLocation!.latitude, _selectedLocation!.longitude),
+      };
+
+      if (widget.isRider) {
+        userData['vehicleType'] = _vehicleTypeController.text;
+        userData['licenseNumber'] = _licenseNumberController.text;
+      }
+
+      await FirebaseFirestore.instance
+          .collection(widget.isRider ? 'riders' : 'users')
+          .doc(_phoneController.text)
+          .set(userData, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile saved successfully')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      developer.log('Error saving profile: $e', name: 'RegisterPage');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
@@ -228,23 +306,52 @@ class _RegisterPageState extends State<RegisterPage> {
                   const SizedBox(height: 20),
                   _buildTextField(_phoneController, 'Phone Number', enabled: !_isEditMode),
                   _buildTextField(_passwordController, 'Password', isPassword: true),
+                  _buildTextField(_confirmPasswordController, 'Confirm Password', 
+                    isPassword: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
                   _buildTextField(_nameController, 'Name'),
                   _buildTextField(_addressController, 'Address'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _getLocationFromAddress,
+                          child: const Text('Get Location from Address'),
+                          style: _buttonStyle(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _selectLocation,
+                          child: const Text('Select on Map'),
+                          style: _buttonStyle(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_selectedLocation != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Selected Location: ${_selectedLocation!.latitude.toStringAsFixed(4)}, '
+                        '${_selectedLocation!.longitude.toStringAsFixed(4)}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
                   if (widget.isRider) ...[
                     _buildTextField(_vehicleTypeController, 'Vehicle Type'),
                     _buildTextField(_licenseNumberController, 'License Number'),
                   ],
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _selectLocation,
-                    child: Text(_selectedLocation != null ? 'Change Location' : 'Select Location'),
-                    style: _buttonStyle(),
-                  ),
-                  if (_selectedLocation != null)
-                    Text(
-                      'Selected Location: ${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _saveProfile,
@@ -260,7 +367,13 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {bool enabled = true, bool isPassword = false}) {
+  Widget _buildTextField(
+    TextEditingController controller, 
+    String label, {
+    bool enabled = true, 
+    bool isPassword = false,
+    String? Function(String?)? validator,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
@@ -273,12 +386,16 @@ class _RegisterPageState extends State<RegisterPage> {
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide.none,
           ),
+          errorStyle: const TextStyle(color: Colors.white),
         ),
         enabled: enabled,
         obscureText: isPassword,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
+        validator: validator ?? (value) {
+          if (value == null || value.trim().isEmpty) {
             return 'Please enter your $label';
+          }
+          if (label == 'Phone Number' && !RegExp(r'^\d{10}$').hasMatch(value)) {
+            return 'Please enter a valid 10-digit phone number';
           }
           return null;
         },

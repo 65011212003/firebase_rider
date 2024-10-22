@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'login_page.dart';
 import 'dart:developer' as developer;
+import 'location_service.dart';
 
 class RiderHomePage extends StatelessWidget {
   final String riderId;
@@ -323,7 +324,7 @@ class _ActiveDeliveryItemState extends State<ActiveDeliveryItem> {
     }
   }
 
-  void _updateDeliveryStatus() async {
+  Future<void> _updateDeliveryStatus() async {
     String newStatus;
     switch (widget.delivery['status']) {
       case 'accepted':
@@ -339,17 +340,47 @@ class _ActiveDeliveryItemState extends State<ActiveDeliveryItem> {
         return;
     }
 
-    if (newStatus == 'picked_up' || newStatus == 'completed') {
-      final imageFile = await _takePhoto();
-      if (imageFile == null) {
-        ScaffoldMessenger.of(_context).showSnackBar(
-          SnackBar(content: Text('Please take a photo of the ${newStatus == 'picked_up' ? 'package' : 'delivery'}')),
-        );
-        return;
+    try {
+      // Change the type to Map<String, dynamic> to accept both String and FieldValue
+      final Map<String, dynamic> updateData = {
+        'status': newStatus,
+      };
+
+      if (newStatus == 'picked_up') {
+        updateData['pickupTime'] = FieldValue.serverTimestamp();
+      } else if (newStatus == 'completed') {
+        updateData['deliveryTime'] = FieldValue.serverTimestamp();
       }
-      await _uploadPhotoAndUpdateStatus(imageFile, newStatus);
-    } else {
-      await _updateStatusInFirestore(newStatus);
+
+      await FirebaseFirestore.instance.collection('deliveries').doc(widget.deliveryId).update(updateData);
+
+      if (newStatus == 'picked_up' || newStatus == 'completed') {
+        final imageFile = await _takePhoto();
+        if (imageFile == null) {
+          ScaffoldMessenger.of(_context).showSnackBar(
+            SnackBar(content: Text('Please take a photo of the ${newStatus == 'picked_up' ? 'package' : 'delivery'}')),
+          );
+          return;
+        }
+        await _uploadPhotoAndUpdateStatus(imageFile, newStatus);
+      } else {
+        await _updateStatusInFirestore(newStatus);
+      }
+
+      // Start location tracking when status changes to 'delivering'
+      if (newStatus == 'delivering') {
+        LocationService().startTracking(widget.riderId, widget.deliveryId);
+      }
+
+      // Stop location tracking when status changes to 'completed'
+      if (newStatus == 'completed') {
+        LocationService().stopTracking();
+      }
+    } catch (e) {
+      developer.log('Error updating delivery status: $e');
+      ScaffoldMessenger.of(_context).showSnackBar(
+        SnackBar(content: Text('Error updating delivery status: $e')),
+      );
     }
   }
 
@@ -402,5 +433,11 @@ class _ActiveDeliveryItemState extends State<ActiveDeliveryItem> {
         SnackBar(content: Text('Error updating delivery status: $e')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    LocationService().stopTracking();
+    super.dispose();
   }
 }

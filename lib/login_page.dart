@@ -16,62 +16,93 @@ class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'กรุณากรอกเบอร์โทรศัพท์';
+    }
+    // Check for valid phone number format (10 digits)
+    if (!RegExp(r'^\d{10}$').hasMatch(value.replaceAll('-', ''))) {
+      return 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'กรุณากรอกรหัสผ่าน';
+    }
+    return null;
+  }
+
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // Check in users collection
-        var userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_phoneController.text)
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      // Format phone number by removing dashes
+      final phoneNumber = _phoneController.text.replaceAll('-', '');
+      
+      // Check in users collection
+      var userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(phoneNumber)
+          .get();
+
+      bool isRider = false;
+
+      // If not found in users, check in riders collection
+      if (!userDoc.exists) {
+        userDoc = await FirebaseFirestore.instance
+            .collection('riders')
+            .doc(phoneNumber)
             .get();
+        isRider = true;
+      }
 
-        bool isRider = false;
-
-        // If not found in users, check in riders collection
-        if (!userDoc.exists) {
-          userDoc = await FirebaseFirestore.instance
-              .collection('riders')
-              .doc(_phoneController.text)
-              .get();
-          isRider = true;
-        }
-
-        if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>;
-          if (userData['password'] == _passwordController.text) {
-            if (isRider) {
-              // Navigate to RiderHomePage for riders
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => RiderHomePage(riderId: _phoneController.text),
-                ),
-              );
-            } else {
-              // Navigate to MyHomePage for regular users
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => MyHomePage(
-                    phone: _phoneController.text,
-                    isRider: isRider,
-                  ),
-                ),
-              );
-            }
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        if (userData['password'] == _passwordController.text) {
+          if (isRider) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => RiderHomePage(riderId: phoneNumber),
+              ),
+            );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Invalid password')),
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => MyHomePage(
+                  phone: phoneNumber,
+                  isRider: isRider,
+                ),
+              ),
             );
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not found')),
+            const SnackBar(
+              content: Text('รหัสผ่านไม่ถูกต้อง'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
-      } catch (e) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          const SnackBar(
+            content: Text('ไม่พบบัญชีผู้ใช้งาน'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -115,14 +146,11 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
                       ),
+                      prefixIcon: const Icon(Icons.phone),
+                      errorStyle: const TextStyle(color: Colors.white),
                     ),
                     keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your phone number';
-                      }
-                      return null;
-                    },
+                    validator: _validatePhone,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -135,14 +163,11 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
                       ),
+                      prefixIcon: const Icon(Icons.lock),
+                      errorStyle: const TextStyle(color: Colors.white),
                     ),
                     obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
+                    validator: _validatePassword,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(

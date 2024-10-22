@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'send_delivery_page.dart';
 
-class SelectRecipientPage extends StatelessWidget {
+class SelectRecipientPage extends StatefulWidget {
   final String senderId;
 
   const SelectRecipientPage({Key? key, required this.senderId}) : super(key: key);
+
+  @override
+  _SelectRecipientPageState createState() => _SelectRecipientPageState();
+}
+
+class _SelectRecipientPageState extends State<SelectRecipientPage> {
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +33,11 @@ class SelectRecipientPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              // TODO: Implement search functionality
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
             ),
           ),
           Expanded(
@@ -42,12 +53,23 @@ class SelectRecipientPage extends StatelessWidget {
                 }
 
                 final users = snapshot.data!.docs;
+                final filteredUsers = users.where((user) {
+                  final userData = user.data() as Map<String, dynamic>;
+                  final name = (userData['name'] ?? '').toLowerCase();
+                  final phone = (userData['phone'] ?? '').toLowerCase();
+                  return name.contains(_searchQuery) || phone.contains(_searchQuery);
+                }).toList();
 
                 return ListView.builder(
-                  itemCount: users.length,
+                  itemCount: filteredUsers.length,
                   itemBuilder: (context, index) {
-                    final user = users[index].data() as Map<String, dynamic>;
-                    final userId = users[index].id;
+                    final user = filteredUsers[index].data() as Map<String, dynamic>;
+                    final userId = filteredUsers[index].id;
+
+                    // Skip the current user
+                    if (userId == widget.senderId) {
+                      return const SizedBox.shrink();
+                    }
 
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -70,7 +92,7 @@ class SelectRecipientPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => SendDeliveryPage(
-                                  senderId: senderId,
+                                  senderId: widget.senderId,
                                   recipientId: userId,
                                   recipientName: user['name'] ?? 'Unknown',
                                   recipientAddress: user['address'] ?? 'Not provided',
