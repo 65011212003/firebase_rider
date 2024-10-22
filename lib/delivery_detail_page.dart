@@ -7,6 +7,9 @@ import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'dart:math' show cos, sqrt, asin;
 import 'package:geolocator/geolocator.dart';
+import 'package:easy_stepper/easy_stepper.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'location_service.dart';
 
 class DeliveryDetailPage extends StatefulWidget {
@@ -24,6 +27,28 @@ class DeliveryDetailPage extends StatefulWidget {
 class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   final PopupController _popupLayerController = PopupController();
   LatLng? _riderLocation;
+  final MapController _mapController = MapController();
+  List<LatLng> polylineCoordinates = [];
+
+  Future<Map<String, dynamic>> findDistance(
+      double startLat, double startLong, double endLat, double endLong) async {
+    final response = await http.get(Uri.parse(
+        'http://router.project-osrm.org/route/v1/driving/$startLong,$startLat;$endLong,$endLat?overview=full&geometries=geojson'));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
+      final distance = data['routes'][0]['distance'] as num;
+      return {
+        "isError": false,
+        "distance": (distance / 1000),
+        "routePoints": coordinates
+            .map((coord) => LatLng(coord[1] as double, coord[0] as double))
+            .toList()
+      };
+    }
+    return {"isError": true, "routePoints": [], "distance": -1};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +234,99 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 24),
+                                if (pickupLocation != null && deliveryLocation != null)
+                                  FutureBuilder<Map<String, dynamic>>(
+                                    future: findDistance(
+                                      pickupLocation.latitude,
+                                      pickupLocation.longitude,
+                                      deliveryLocation.latitude,
+                                      deliveryLocation.longitude
+                                    ),
+                                    builder: (context, routeSnapshot) {
+                                      if (routeSnapshot.connectionState == ConnectionState.waiting) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      }
+                                      
+                                      final routePoints = routeSnapshot.data?['routePoints'] as List<LatLng>? ?? [];
+                                      
+                                      return Container(
+                                        height: 300,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: FlutterMap(
+                                            options: MapOptions(
+                                              initialCenter: LatLng(
+                                                (pickupLocation.latitude + deliveryLocation.latitude) / 2,
+                                                (pickupLocation.longitude + deliveryLocation.longitude) / 2,
+                                              ),
+                                              initialZoom: 13,
+                                            ),
+                                            children: [
+                                              TileLayer(
+                                                urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                                subdomains: const ['a', 'b', 'c'],
+                                              ),
+                                              PolylineLayer(
+                                                polylines: [
+                                                  Polyline(
+                                                    points: routePoints,
+                                                    color: Colors.blue,
+                                                    strokeWidth: 3.0,
+                                                  ),
+                                                ],
+                                              ),
+                                              MarkerLayer(
+                                                markers: [
+                                                  Marker(
+                                                    point: pickupLocation,
+                                                    width: 40,
+                                                    height: 40,
+                                                    child: const Icon(
+                                                      Icons.location_on,
+                                                      color: Colors.green,
+                                                      size: 40,
+                                                    ),
+                                                  ),
+                                                  Marker(
+                                                    point: deliveryLocation,
+                                                    width: 40,
+                                                    height: 40,
+                                                    child: const Icon(
+                                                      Icons.flag,
+                                                      color: Colors.red,
+                                                      size: 40,
+                                                    ),
+                                                  ),
+                                                  if (riderLocation != null)
+                                                    Marker(
+                                                      point: riderLocation,
+                                                      width: 40,
+                                                      height: 40,
+                                                      child: const Icon(
+                                                        Icons.delivery_dining,
+                                                        color: Colors.blue,
+                                                        size: 40,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  ),
+                                const SizedBox(height: 24),
                                 Card(
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
@@ -276,8 +394,6 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                   ),
                                   child: _buildDeliveryProgress(delivery),
                                 ),
-                                if (delivery['status'] == 'delivering')
-                                  _buildRiderLocationMap(riderLocation),
                               ],
                             ),
                           ),
@@ -414,35 +530,42 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     ];
 
     final currentStatus = delivery['status'] as String? ?? 'pending';
+    final currentStep = steps.indexWhere((step) => step['status'] == currentStatus);
 
-    return Column(
-      children: steps.map((step) {
-        final bool isCompleted = _isStepCompleted(
-          currentStatus,
-          step['status'] as String,
-        );
-        return ListTile(
-          leading: Icon(
-            step['icon'] as IconData,
-            color: isCompleted ? Colors.green : Colors.grey,
-            size: 28,
-          ),
-          title: Text(
-            step['title'] as String,
-            style: TextStyle(
-              fontWeight: isCompleted ? FontWeight.w600 : FontWeight.normal,
-              color: isCompleted ? Colors.green : Colors.grey,
-            ),
-          ),
-          trailing: isCompleted
-              ? const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          EasyStepper(
+            activeStep: currentStep,
+            stepShape: StepShape.circle,
+            stepBorderRadius: 12,
+            borderThickness: 2,
+            padding: const EdgeInsets.all(24),
+            stepRadius: 28,
+            finishedStepBorderColor: Colors.green,
+            finishedStepTextColor: Colors.green,
+            finishedStepBackgroundColor: Colors.green,
+            activeStepIconColor: Colors.white,
+            activeStepBorderColor: Colors.purple,
+            activeStepTextColor: Colors.purple,
+            loadingAnimation: "false",
+            steps: steps.map((step) {
+              return EasyStep(
+                customStep: Icon(
+                  step['icon'] as IconData,
                   size: 24,
-                )
-              : null,
-        );
-      }).toList(),
+                  color: _isStepCompleted(currentStatus, step['status'] as String) 
+                      ? Colors.white 
+                      : Colors.grey,
+                ),
+                title: step['title'] as String,
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -531,7 +654,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   }
 }
 
-class LocationMapWidget extends StatelessWidget {
+class LocationMapWidget extends StatefulWidget {
   final LatLng pickupLocation;
   final LatLng deliveryLocation;
 
@@ -542,13 +665,36 @@ class LocationMapWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _LocationMapWidgetState createState() => _LocationMapWidgetState();
+}
+
+class _LocationMapWidgetState extends State<LocationMapWidget> {
+  List<LatLng> routePoints = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoute();
+  }
+
+  Future<void> _loadRoute() async {
+    final points = await LocationService.getRoute(
+      widget.pickupLocation,
+      widget.deliveryLocation,
+    );
+    setState(() {
+      routePoints = points;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final center = LatLng(
-      (pickupLocation.latitude + deliveryLocation.latitude) / 2,
-      (pickupLocation.longitude + deliveryLocation.longitude) / 2,
+      (widget.pickupLocation.latitude + widget.deliveryLocation.latitude) / 2,
+      (widget.pickupLocation.longitude + widget.deliveryLocation.longitude) / 2,
     );
 
-    final distance = calculateDistance(pickupLocation, deliveryLocation);
+    final distance = calculateDistance(widget.pickupLocation, widget.deliveryLocation);
     final zoom = calculateZoomLevel(distance);
 
     return Container(
@@ -575,10 +721,11 @@ class LocationMapWidget extends StatelessWidget {
               urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
               subdomains: const ['a', 'b', 'c'],
             ),
+            // Draw the route
             PolylineLayer(
               polylines: [
                 Polyline(
-                  points: [pickupLocation, deliveryLocation],
+                  points: routePoints,
                   color: Colors.blue.shade600,
                   strokeWidth: 4.0,
                 ),
@@ -589,7 +736,7 @@ class LocationMapWidget extends StatelessWidget {
                 Marker(
                   width: 40.0,
                   height: 40.0,
-                  point: pickupLocation,
+                  point: widget.pickupLocation,
                   child: const Icon(
                     Icons.location_on,
                     color: Colors.green,
@@ -599,7 +746,7 @@ class LocationMapWidget extends StatelessWidget {
                 Marker(
                   width: 40.0,
                   height: 40.0,
-                  point: deliveryLocation,
+                  point: widget.deliveryLocation,
                   child: const Icon(
                     Icons.flag,
                     color: Colors.red,

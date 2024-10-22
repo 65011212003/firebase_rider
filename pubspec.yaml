@@ -48,6 +48,7 @@ dependencies:
   flutter_polyline_points: ^2.1.0
   geolocator: ^13.0.1
   http: ^1.1.0
+  easy_stepper: ^0.8.5+1
 
 dev_dependencies:
   flutter_test:

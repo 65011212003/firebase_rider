@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 class LocationService {
   static final LocationService _instance = LocationService._internal();
@@ -69,6 +70,39 @@ class LocationService {
     } catch (e) {
       print('Error getting coordinates: $e');
       return null;
+    }
+  }
+
+  static Future<List<LatLng>> getRoute(LatLng start, LatLng end) async {
+    try {
+      // Using OpenStreetMap's OSRM service for routing
+      final response = await http.get(Uri.parse(
+        'http://router.project-osrm.org/route/v1/driving/'
+        '${start.longitude},${start.latitude};'
+        '${end.longitude},${end.latitude}'
+        '?overview=full&geometries=polyline'
+      ));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          final route = data['routes'][0];
+          final geometry = route['geometry'];
+          
+          // Decode the polyline
+          final polylinePoints = PolylinePoints();
+          final points = polylinePoints.decodePolyline(geometry);
+          
+          // Convert to LatLng list
+          return points
+              .map((point) => LatLng(point.latitude, point.longitude))
+              .toList();
+        }
+      }
+      return [start, end]; // Fallback to direct line if route fetch fails
+    } catch (e) {
+      print('Error getting route: $e');
+      return [start, end]; // Fallback to direct line
     }
   }
 }

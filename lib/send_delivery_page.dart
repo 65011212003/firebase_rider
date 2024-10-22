@@ -110,6 +110,33 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
   Future<void> _submitDelivery() async {
     if (_formKey.currentState!.validate() && _items.isNotEmpty && _allItemsImage != null) {
       try {
+        // Get sender location from users collection
+        final senderDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.senderId)
+            .get();
+        
+        // Get recipient location from users collection  
+        final recipientDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.recipientId)
+            .get();
+
+        if (!senderDoc.exists || !recipientDoc.exists) {
+          throw Exception('Sender or recipient location not found');
+        }
+
+        final senderData = senderDoc.data() as Map<String, dynamic>;
+        final recipientData = recipientDoc.data() as Map<String, dynamic>;
+
+        // Get locations from user data
+        final senderLocation = senderData['location'] as GeoPoint?;
+        final recipientLocation = recipientData['location'] as GeoPoint?;
+
+        if (senderLocation == null || recipientLocation == null) {
+          throw Exception('Sender or recipient location not set');
+        }
+
         List<Map<String, dynamic>> itemsData = [];
         for (var item in _items) {
           String? imageUrl;
@@ -131,10 +158,15 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
 
         final deliveryRef = await FirebaseFirestore.instance.collection('deliveries').add({
           'senderId': widget.senderId,
+          'senderName': senderData['name'],
+          'senderPhone': senderData['phone'],
+          'senderAddress': senderData['address'],
+          'pickupLocation': senderLocation,  // Add pickup location
           'recipientId': widget.recipientId,
           'recipientName': widget.recipientName,
           'recipientPhone': widget.recipientPhone,
           'recipientAddress': widget.recipientAddress,
+          'deliveryLocation': recipientLocation,  // Add delivery location
           'items': itemsData,
           'allItemsImageUrl': allItemsImageUrl,
           'status': 'pending',

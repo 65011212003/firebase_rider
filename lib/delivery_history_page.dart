@@ -12,44 +12,111 @@ class DeliveryHistoryPage extends StatefulWidget {
   _DeliveryHistoryPageState createState() => _DeliveryHistoryPageState();
 }
 
-class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
+class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delivery History'),
         backgroundColor: Colors.purple.shade400,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Sent'),
+            Tab(text: 'Received'),
+          ],
+        ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('deliveries')
-            .where('recipientId', isEqualTo: widget.userId) // Show deliveries where user is recipient
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Sent deliveries
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('deliveries')
+                .where('senderId', isEqualTo: widget.userId)
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final deliveries = snapshot.data!.docs;
+              final deliveries = snapshot.data!.docs;
 
-          if (deliveries.isEmpty) {
-            return const Center(child: Text('No deliveries found.'));
-          }
+              if (deliveries.isEmpty) {
+                return const Center(child: Text('No sent deliveries found.'));
+              }
 
-          return ListView.builder(
-            itemCount: deliveries.length,
-            itemBuilder: (context, index) {
-              final delivery = deliveries[index].data() as Map<String, dynamic>;
-              final deliveryId = deliveries[index].id;
-              return DeliveryHistoryItem(delivery: delivery, deliveryId: deliveryId);
+              return ListView.builder(
+                itemCount: deliveries.length,
+                itemBuilder: (context, index) {
+                  final delivery = deliveries[index].data() as Map<String, dynamic>;
+                  final deliveryId = deliveries[index].id;
+                  return DeliveryHistoryItem(
+                    delivery: delivery,
+                    deliveryId: deliveryId,
+                    isSender: true,
+                  );
+                },
+              );
             },
-          );
-        },
+          ),
+          // Received deliveries
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('deliveries')
+                .where('recipientId', isEqualTo: widget.userId)
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final deliveries = snapshot.data!.docs;
+
+              if (deliveries.isEmpty) {
+                return const Center(child: Text('No received deliveries found.'));
+              }
+
+              return ListView.builder(
+                itemCount: deliveries.length,
+                itemBuilder: (context, index) {
+                  final delivery = deliveries[index].data() as Map<String, dynamic>;
+                  final deliveryId = deliveries[index].id;
+                  return DeliveryHistoryItem(
+                    delivery: delivery,
+                    deliveryId: deliveryId,
+                    isSender: false,
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -58,11 +125,13 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
 class DeliveryHistoryItem extends StatelessWidget {
   final Map<String, dynamic> delivery;
   final String deliveryId;
+  final bool isSender;
 
   const DeliveryHistoryItem({
     Key? key,
     required this.delivery,
     required this.deliveryId,
+    required this.isSender,
   }) : super(key: key);
 
   @override
@@ -76,21 +145,23 @@ class DeliveryHistoryItem extends StatelessWidget {
         title: FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
-              .doc(delivery['senderId'])
+              .doc(isSender ? delivery['recipientId'] : delivery['senderId'])
               .get(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Text('Loading sender...');
+              return const Text('Loading...');
             }
             if (snapshot.hasError) {
               return Text('Error: ${snapshot.error}');
             }
             if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Text('From: Unknown');
+              return Text('${isSender ? "To" : "From"}: Unknown');
             }
-            final senderData = snapshot.data!.data() as Map<String, dynamic>;
-            return Text('From: ${senderData['name'] ?? 'Unknown'}', 
-                 style: const TextStyle(fontWeight: FontWeight.bold));
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            return Text(
+              '${isSender ? "To" : "From"}: ${userData['name'] ?? 'Unknown'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            );
           },
         ),
         subtitle: Column(
@@ -105,7 +176,9 @@ class DeliveryHistoryItem extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DeliveryDetailPage(deliveryId: deliveryId)),
+            MaterialPageRoute(
+              builder: (context) => DeliveryDetailPage(deliveryId: deliveryId),
+            ),
           );
         },
       ),
