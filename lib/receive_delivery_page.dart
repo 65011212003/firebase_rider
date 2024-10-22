@@ -3,16 +3,33 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'delivery_detail_page.dart';
 
-class ReceiveDeliveryPage extends StatelessWidget {
+class ReceiveDeliveryPage extends StatefulWidget {
   final String userId;
 
   const ReceiveDeliveryPage({Key? key, required this.userId}) : super(key: key);
 
   @override
+  _ReceiveDeliveryPageState createState() => _ReceiveDeliveryPageState();
+}
+
+class _ReceiveDeliveryPageState extends State<ReceiveDeliveryPage> {
+  late Stream<QuerySnapshot> _deliveriesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _deliveriesStream = FirebaseFirestore.instance
+        .collection('deliveries')
+        .where('recipientId', isEqualTo: widget.userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Receive Delivery'),
+        title: const Text('My Deliveries'),
         backgroundColor: Colors.purple.shade400,
       ),
       body: Container(
@@ -24,11 +41,7 @@ class ReceiveDeliveryPage extends StatelessWidget {
           ),
         ),
         child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('deliveries')
-              .where('recipientId', isEqualTo: userId)
-              .where('status', whereIn: ['pending', 'accepted', 'picked_up', 'delivering'])
-              .snapshots(),
+          stream: _deliveriesStream,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
@@ -41,7 +54,7 @@ class ReceiveDeliveryPage extends StatelessWidget {
             final deliveries = snapshot.data!.docs;
 
             if (deliveries.isEmpty) {
-              return const Center(child: Text('No incoming deliveries found.', style: TextStyle(color: Colors.white)));
+              return const Center(child: Text('No deliveries found.', style: TextStyle(color: Colors.white)));
             }
 
             return ListView.builder(
