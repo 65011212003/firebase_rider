@@ -19,11 +19,11 @@ class RiderHomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rider Dashboard'),
+        backgroundColor: Colors.purple.shade400,
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),
             onPressed: () {
-              // Show a confirmation dialog
               showDialog(
                 context: context,
                 builder: (BuildContext context) {
@@ -40,7 +40,6 @@ class RiderHomePage extends StatelessWidget {
                       TextButton(
                         child: const Text('Sign Out'),
                         onPressed: () {
-                          // Navigate to the LoginPage
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(builder: (context) => const LoginPage()),
                             (Route<dynamic> route) => false,
@@ -55,88 +54,97 @@ class RiderHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('deliveries')
-            .where('status', whereIn: ['pending', 'accepted', 'picked_up'])
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            developer.log('Error in deliveries stream: ${snapshot.error}');
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade200, Colors.purple.shade400],
+          ),
+        ),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('deliveries')
+              .where('status', whereIn: ['pending', 'accepted', 'picked_up'])
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              developer.log('Error in deliveries stream: ${snapshot.error}');
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+            }
 
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final deliveries = snapshot.data!.docs;
+            final deliveries = snapshot.data!.docs;
 
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('riders').doc(riderId).snapshots(),
-            builder: (context, riderSnapshot) {
-              if (riderSnapshot.hasError) {
-                developer.log('Error in rider stream: ${riderSnapshot.error}');
-                return Center(child: Text('Error: ${riderSnapshot.error}'));
-              }
+            return StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('riders').doc(riderId).snapshots(),
+              builder: (context, riderSnapshot) {
+                if (riderSnapshot.hasError) {
+                  developer.log('Error in rider stream: ${riderSnapshot.error}');
+                  return Center(child: Text('Error: ${riderSnapshot.error}', style: const TextStyle(color: Colors.white)));
+                }
 
-              if (!riderSnapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+                if (!riderSnapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              final riderData = riderSnapshot.data!.data() as Map<String, dynamic>?;
-              final String? activeDeliveryId = riderData?['activeDeliveryId'] as String?;
+                final riderData = riderSnapshot.data!.data() as Map<String, dynamic>?;
+                final String? activeDeliveryId = riderData?['activeDeliveryId'] as String?;
 
-              final pendingDeliveries = deliveries.where((doc) => doc['status'] == 'pending').toList();
-              final activeDelivery = activeDeliveryId != null
-                  ? deliveries.firstWhereOrNull((doc) => doc.id == activeDeliveryId)
-                  : null;
+                final pendingDeliveries = deliveries.where((doc) => doc['status'] == 'pending').toList();
+                final activeDelivery = activeDeliveryId != null
+                    ? deliveries.firstWhereOrNull((doc) => doc.id == activeDeliveryId)
+                    : null;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (activeDelivery != null)
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (activeDelivery != null)
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text('Active Delivery', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+                      ),
+                    if (activeDelivery != null)
+                      AvailableDeliveryItem(
+                        delivery: activeDelivery.data() as Map<String, dynamic>,
+                        deliveryId: activeDelivery.id,
+                        riderId: riderId,
+                        isActiveDelivery: true,
+                      ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Text('Active Delivery', style: Theme.of(context).textTheme.titleLarge),
+                      child: Text('Pending Requests', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
                     ),
-                  if (activeDelivery != null)
-                    AvailableDeliveryItem(
-                      delivery: activeDelivery.data() as Map<String, dynamic>,
-                      deliveryId: activeDelivery.id,
-                      riderId: riderId,
-                      isActiveDelivery: true,
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text('Pending Requests', style: Theme.of(context).textTheme.titleLarge),
-                  ),
-                  if (pendingDeliveries.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text('No pending requests'),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: pendingDeliveries.length,
-                        itemBuilder: (context, index) {
-                          final delivery = pendingDeliveries[index].data() as Map<String, dynamic>;
-                          final String deliveryId = pendingDeliveries[index].id;
-                          return AvailableDeliveryItem(
-                            delivery: delivery,
-                            deliveryId: deliveryId,
-                            riderId: riderId,
-                            isActiveDelivery: false,
-                          );
-                        },
+                    if (pendingDeliveries.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text('No pending requests', style: TextStyle(color: Colors.white)),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: pendingDeliveries.length,
+                          itemBuilder: (context, index) {
+                            final delivery = pendingDeliveries[index].data() as Map<String, dynamic>;
+                            final String deliveryId = pendingDeliveries[index].id;
+                            return AvailableDeliveryItem(
+                              delivery: delivery,
+                              deliveryId: deliveryId,
+                              riderId: riderId,
+                              isActiveDelivery: false,
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
-          );
-        },
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -182,6 +190,7 @@ class _AvailableDeliveryItemState extends State<AvailableDeliveryItem> {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: Colors.white.withOpacity(0.9),
       child: Column(
         children: [
           ListTile(
@@ -233,6 +242,7 @@ class _AvailableDeliveryItemState extends State<AvailableDeliveryItem> {
       onPressed: widget.delivery['status'] == label.toLowerCase() ? null : onPressed,
       child: Text(label),
       style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white,
         backgroundColor: color,
         disabledBackgroundColor: Colors.grey,
       ),

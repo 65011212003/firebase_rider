@@ -155,66 +155,114 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Send Delivery')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ElevatedButton(
-                onPressed: _selectRecipient,
-                child: Text(_selectedRecipientName != null ? 'Change Recipient' : 'Select Recipient'),
-              ),
-              if (_selectedRecipientName != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Recipient: $_selectedRecipientName'),
-                    Text('Phone: $_selectedRecipientPhone'),
-                  ],
-                ),
-              const SizedBox(height: 20),
-              if (_pickupLocation != null && _deliveryLocation != null)
-                LocationMapWidget(
-                  pickupLocation: _pickupLocation!,
-                  deliveryLocation: _deliveryLocation!,
-                ),
-              const SizedBox(height: 20),
-              Text('Items:', style: Theme.of(context).textTheme.titleLarge),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  return ListTile(
-                    leading: item.image != null
-                        ? Image.file(File(item.image!.path), width: 50, height: 50, fit: BoxFit.cover)
-                        : const Icon(Icons.image),
-                    title: Text(item.description),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () {
-                        setState(() {
-                          _items.removeAt(index);
-                        });
-                      },
+      appBar: AppBar(
+        title: const Text('Send Delivery'),
+        backgroundColor: Colors.purple.shade400,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade200, Colors.purple.shade400],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton(
+                    onPressed: _selectRecipient,
+                    child: Text(_selectedRecipientName != null ? 'Change Recipient' : 'Select Recipient'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.purple,
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                  );
-                },
+                  ),
+                  if (_selectedRecipientName != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Recipient: $_selectedRecipientName', style: const TextStyle(color: Colors.white)),
+                        Text('Phone: $_selectedRecipientPhone', style: const TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  const SizedBox(height: 20),
+                  if (_pickupLocation != null && _deliveryLocation != null)
+                    Container(
+                      height: 300,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LocationMapWidget(
+                          pickupLocation: _pickupLocation!,
+                          deliveryLocation: _deliveryLocation!,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  Text('Items:', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _items.length,
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
+                      return Card(
+                        color: Colors.white,
+                        child: ListTile(
+                          leading: item.image != null
+                              ? Image.file(File(item.image!.path), width: 50, height: 50, fit: BoxFit.cover)
+                              : const Icon(Icons.image),
+                          title: Text(item.description),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () {
+                              setState(() {
+                                _items.removeAt(index);
+                              });
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: _addItem,
+                    child: const Text('Add Item'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.purple,
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _submitDelivery,
+                    child: const Text('Submit Delivery Request'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.purple,
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: _addItem,
-                child: const Text('Add Item'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _submitDelivery,
-                child: const Text('Submit Delivery Request'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

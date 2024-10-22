@@ -18,43 +18,53 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delivery History'),
+        backgroundColor: Colors.purple.shade400,
       ),
-      body: FutureBuilder<QuerySnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('deliveries')
-            .where('senderId', isEqualTo: widget.userId)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade200, Colors.purple.shade400],
+          ),
+        ),
+        child: FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('deliveries')
+              .where('senderId', isEqualTo: widget.userId)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+            }
 
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final deliveries = snapshot.data!.docs;
+            final deliveries = snapshot.data!.docs;
 
-          if (deliveries.isEmpty) {
-            return const Center(child: Text('No deliveries found.'));
-          }
+            if (deliveries.isEmpty) {
+              return const Center(child: Text('No deliveries found.', style: TextStyle(color: Colors.white)));
+            }
 
-          // Sort the deliveries by createdAt in descending order
-          deliveries.sort((a, b) {
-            final aDate = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp;
-            final bDate = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp;
-            return bDate.compareTo(aDate);
-          });
+            // Sort the deliveries by createdAt in descending order
+            deliveries.sort((a, b) {
+              final aDate = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp;
+              final bDate = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp;
+              return bDate.compareTo(aDate);
+            });
 
-          return ListView.builder(
-            itemCount: deliveries.length,
-            itemBuilder: (context, index) {
-              final delivery = deliveries[index].data() as Map<String, dynamic>;
-              final deliveryId = deliveries[index].id;
-              return DeliveryHistoryItem(delivery: delivery, deliveryId: deliveryId);
-            },
-          );
-        },
+            return ListView.builder(
+              itemCount: deliveries.length,
+              itemBuilder: (context, index) {
+                final delivery = deliveries[index].data() as Map<String, dynamic>;
+                final deliveryId = deliveries[index].id;
+                return DeliveryHistoryItem(delivery: delivery, deliveryId: deliveryId);
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -77,8 +87,9 @@ class DeliveryHistoryItem extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: Colors.white.withOpacity(0.9),
       child: ListTile(
-        title: Text('To: ${delivery['recipientName']}'),
+        title: Text('To: ${delivery['recipientName']}', style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

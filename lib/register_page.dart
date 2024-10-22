@@ -160,141 +160,139 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditMode ? 'Edit Profile' : 'Register ${widget.isRider ? 'Rider' : 'User'}')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('Choose Image Source'),
-                        content: SingleChildScrollView(
-                          child: ListBody(
-                            children: <Widget>[
-                              GestureDetector(
-                                child: const Text('Camera'),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _pickImage(ImageSource.camera);
-                                },
+      appBar: AppBar(
+        title: Text(_isEditMode ? 'Edit Profile' : 'Register ${widget.isRider ? 'Rider' : 'User'}'),
+        backgroundColor: Colors.purple.shade400,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade200, Colors.purple.shade400],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('Choose Image Source'),
+                            content: SingleChildScrollView(
+                              child: ListBody(
+                                children: <Widget>[
+                                  GestureDetector(
+                                    child: const Text('Camera'),
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      _pickImage(ImageSource.camera);
+                                    },
+                                  ),
+                                  const Padding(padding: EdgeInsets.all(8.0)),
+                                  GestureDetector(
+                                    child: const Text('Gallery'),
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      _pickImage(ImageSource.gallery);
+                                    },
+                                  ),
+                                ],
                               ),
-                              const Padding(padding: EdgeInsets.all(8.0)),
-                              GestureDetector(
-                                child: const Text('Gallery'),
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  _pickImage(ImageSource.gallery);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-                child: Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: _userImage != null
+                          ? Image.file(File(_userImage!.path), fit: BoxFit.cover)
+                          : (_currentImageUrl != null
+                              ? Image.network(_currentImageUrl!, fit: BoxFit.cover)
+                              : const Icon(Icons.add_a_photo, size: 50, color: Colors.purple)),
+                    ),
                   ),
-                  child: _userImage != null
-                      ? Image.file(File(_userImage!.path), fit: BoxFit.cover)
-                      : (_currentImageUrl != null
-                          ? Image.network(_currentImageUrl!, fit: BoxFit.cover)
-                          : const Icon(Icons.add_a_photo, size: 50)),
-                ),
+                  const SizedBox(height: 20),
+                  _buildTextField(_phoneController, 'Phone Number', enabled: !_isEditMode),
+                  _buildTextField(_passwordController, 'Password', isPassword: true),
+                  _buildTextField(_nameController, 'Name'),
+                  _buildTextField(_addressController, 'Address'),
+                  if (widget.isRider) ...[
+                    _buildTextField(_vehicleTypeController, 'Vehicle Type'),
+                    _buildTextField(_licenseNumberController, 'License Number'),
+                  ],
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _selectLocation,
+                    child: Text(_selectedLocation != null ? 'Change Location' : 'Select Location'),
+                    style: _buttonStyle(),
+                  ),
+                  if (_selectedLocation != null)
+                    Text(
+                      'Selected Location: ${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _saveProfile,
+                    child: Text(_isEditMode ? 'Save Changes' : 'Register'),
+                    style: _buttonStyle(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                enabled: !_isEditMode,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your phone number';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your address';
-                  }
-                  return null;
-                },
-              ),
-              if (widget.isRider) ...[
-                TextFormField(
-                  controller: _vehicleTypeController,
-                  decoration: const InputDecoration(labelText: 'Vehicle Type'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your vehicle type';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _licenseNumberController,
-                  decoration: const InputDecoration(labelText: 'License Number'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your license number';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _selectLocation,
-                child: Text(_selectedLocation != null ? 'Change Location' : 'Select Location'),
-              ),
-              if (_selectedLocation != null)
-                Text('Selected Location: ${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}'),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _saveProfile,
-                child: Text(_isEditMode ? 'Save Changes' : 'Register'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, {bool enabled = true, bool isPassword = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        enabled: enabled,
+        obscureText: isPassword,
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please enter your $label';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  ButtonStyle _buttonStyle() {
+    return ElevatedButton.styleFrom(
+      foregroundColor: Colors.purple,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }
