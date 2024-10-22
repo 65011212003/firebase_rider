@@ -60,37 +60,25 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             );
 
             return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Delivery #${widget.deliveryId}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                        Text('Status: ${delivery['status']}', style: const TextStyle(color: Colors.white)),
-                        Text('Created: $formattedDate', style: const TextStyle(color: Colors.white)),
-                        const SizedBox(height: 16),
-                        _buildInfoSection('Sender Information:', delivery, 'senderName', 'senderPhone'),
-                        _buildInfoSection('Recipient Information:', delivery, 'recipientName', 'recipientPhone'),
-                        const SizedBox(height: 16),
-                        const Text('Items:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ...(delivery['items'] as List).map((item) => _buildItemWidget(item)),
-                        const SizedBox(height: 16),
-                        const Text('Delivery Progress:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                        _buildDeliveryProgress(delivery),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: 300,
-                    child: LocationMapWidget(
-                      pickupLocation: pickupLocation,
-                      deliveryLocation: deliveryLocation,
-                    ),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Delivery #${widget.deliveryId}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text('Status: ${delivery['status']}'),
+                    Text('Created: $formattedDate'),
+                    const SizedBox(height: 16),
+                    _buildInfoSection('Sender Information:', delivery, 'senderName', 'senderPhone'),
+                    _buildInfoSection('Recipient Information:', delivery, 'recipientName', 'recipientPhone'),
+                    const SizedBox(height: 16),
+                    const Text('Items:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    ...(delivery['items'] as List).map((item) => _buildItemWidget(item)),
+                    const SizedBox(height: 16),
+                    const Text('Delivery Progress:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    _buildDeliveryProgress(delivery),
+                  ],
+                ),
               ),
             );
           },
@@ -103,32 +91,21 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text('Name: ${data[nameKey]}', style: const TextStyle(color: Colors.white)),
-        Text('Phone: ${data[phoneKey]}', style: const TextStyle(color: Colors.white)),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('Name: ${data[nameKey] ?? 'N/A'}'),
+        Text('Phone: ${data[phoneKey] ?? 'N/A'}'),
         const SizedBox(height: 16),
       ],
     );
   }
 
   Widget _buildItemWidget(Map<String, dynamic> item) {
-    return Row(
-      children: [
-        if (item['imageUrl'] != null)
-          Image.network(
-            item['imageUrl'],
-            width: 50,
-            height: 50,
-            fit: BoxFit.cover,
-          ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            '- ${item['description']}',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-      ],
+    return ListTile(
+      leading: item['imageUrl'] != null
+          ? Image.network(item['imageUrl'], width: 50, height: 50, fit: BoxFit.cover)
+          : const Icon(Icons.image),
+      title: Text(item['description'] ?? 'No description'),
+      subtitle: Text('Quantity: ${item['quantity'] ?? 'N/A'}'),
     );
   }
 
@@ -149,7 +126,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             step['icon'] as IconData,
             color: isCompleted ? Colors.green : Colors.grey,
           ),
-          title: Text(step['title'] as String, style: TextStyle(color: isCompleted ? Colors.white : Colors.grey[300])),
+          title: Text(step['title'] as String),
           trailing: isCompleted
               ? const Icon(Icons.check, color: Colors.green)
               : null,

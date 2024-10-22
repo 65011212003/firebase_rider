@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'main.dart';
 import 'choose_registration_type.dart';
+import 'rider_home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -38,14 +39,24 @@ class _LoginPageState extends State<LoginPage> {
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           if (userData['password'] == _passwordController.text) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => MyHomePage(
-                  phone: _phoneController.text,
-                  isRider: isRider,
+            if (isRider) {
+              // Navigate to RiderHomePage for riders
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => RiderHomePage(riderId: _phoneController.text),
                 ),
-              ),
-            );
+              );
+            } else {
+              // Navigate to MyHomePage for regular users
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => MyHomePage(
+                    phone: _phoneController.text,
+                    isRider: isRider,
+                  ),
+                ),
+              );
+            }
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Invalid password')),

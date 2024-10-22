@@ -8,6 +8,7 @@ import 'send_delivery_page.dart';
 import 'delivery_history_page.dart';
 import 'rider_home_page.dart';
 import 'receive_delivery_page.dart';
+import 'select_recipient_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,216 +24,262 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase Firestore Demo',
-      theme: _buildAppTheme(),
+      title: 'good2go',
+      theme: ThemeData(
+        primarySwatch: Colors.purple,
+        scaffoldBackgroundColor: Colors.white,
+      ),
       home: const LoginPage(),
     );
   }
+}
 
-  ThemeData _buildAppTheme() {
-    final ThemeData base = ThemeData.light();
-    return base.copyWith(
-      colorScheme: base.colorScheme.copyWith(
-        primary: Colors.purple,
-        secondary: Colors.purpleAccent,
-      ),
-      textTheme: _buildTextTheme(base.textTheme),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.purple,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+class MyHomePage extends StatefulWidget {
+  final String phone;
+  final bool isRider;
+
+  const MyHomePage({super.key, required this.phone, required this.isRider});
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  late Future<DocumentSnapshot> _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = _fetchUserData();
+  }
+
+  Future<DocumentSnapshot> _fetchUserData() async {
+    final collection = widget.isRider ? 'riders' : 'users';
+    return FirebaseFirestore.instance.collection(collection).doc(widget.phone).get();
+  }
+
+  void _editProfile() {
+    // Navigate to edit profile page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RegisterPage(
+          userPhone: widget.phone,
+          isRider: widget.isRider,
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      scaffoldBackgroundColor: Colors.purple[50],
+    ).then((_) {
+      // Refresh user data after returning from edit profile
+      setState(() {
+        _userFuture = _fetchUserData();
+      });
+    });
+  }
+
+  void _signOut() {
+    // Implement sign out logic here
+    // For now, we'll just navigate back to the login page
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => LoginPage()),
+      (Route<dynamic> route) => false,
     );
   }
 
-  TextTheme _buildTextTheme(TextTheme base) {
-    return base.copyWith(
-      headlineSmall: base.headlineSmall!.copyWith(
-        fontWeight: FontWeight.bold,
-        color: Colors.purple[800],
+  void _navigateToSendDelivery() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectRecipientPage(senderId: widget.phone),
       ),
-      bodyLarge: base.bodyLarge!.copyWith(
-        fontSize: 16,
-        color: Colors.black87,
+    );
+  }
+
+  void _navigateToReceiveDelivery() async {
+    try {
+      final userSnapshot = await _userFuture;
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final userName = userData?['name'] ?? 'User';
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReceiveDeliveryPage(
+            userId: widget.phone,
+            userName: userName,
+            key: ValueKey(widget.phone), // Add this line
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error navigating to Receive Delivery: $e');
+      // You might want to show an error message to the user here
+    }
+  }
+
+  void _navigateToDeliveryHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeliveryHistoryPage(userId: widget.phone),
       ),
-      bodyMedium: base.bodyMedium!.copyWith(
-        fontSize: 14,
-        color: Colors.black54,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('good2go', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          PopupMenuButton<String>(
+            icon: CircleAvatar(
+              backgroundColor: Colors.grey[200],
+              child: const Icon(Icons.person, color: Colors.black),
+            ),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _editProfile();
+              } else if (value == 'signout') {
+                _signOut();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Text('Edit Profile'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'signout',
+                child: Text('Sign Out'),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+      body: FutureBuilder<DocumentSnapshot>(
+        future: _userFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('User data not found'));
+          }
+
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          final userName = userData['name'] ?? 'User';
+
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, $userName!',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Order your favourite food!',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  DeliveryBanner(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Menus',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildMenuButton(
+                        context,
+                        Icons.local_shipping,
+                        'Send',
+                        Colors.purple,
+                        _navigateToSendDelivery,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        Icons.receipt,
+                        'Receive',
+                        Colors.green,
+                        _navigateToReceiveDelivery,
+                      ),
+                      _buildMenuButton(
+                        context,
+                        Icons.history,
+                        'History',
+                        Colors.blue,
+                        _navigateToDeliveryHistory,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 40, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key, required this.phone, required this.isRider});
-
-  final String phone;
-  final bool isRider;
-
+class DeliveryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    if (isRider) {
-      return RiderHomePage(riderId: phone);
-    }
-
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.purple.shade200, Colors.purple.shade400],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
           ),
-        ),
-        child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection(isRider ? 'riders' : 'users')
-              .doc(phone)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
-            }
-
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final userData = snapshot.data!.data() as Map<String, dynamic>?;
-
-            if (userData == null) {
-              return const Center(child: Text('User data not found', style: TextStyle(color: Colors.white)));
-            }
-
-            return SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'User Profile',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.exit_to_app, color: Colors.white),
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(builder: (context) => const LoginPage()),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      if (userData['imageUrl'] != null)
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundImage: NetworkImage(userData['imageUrl']),
-                        ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Welcome, ${userData['name'] ?? phone}!',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildInfoText(context, 'Phone', userData['phone'] ?? 'N/A'),
-                      _buildInfoText(context, 'Address', userData['address'] ?? 'N/A'),
-                      if (userData['location'] != null)
-                        _buildInfoText(context, 'Location', '${userData['location'].latitude}, ${userData['location'].longitude}'),
-                      const SizedBox(height: 20),
-                      if (!isRider) ...[
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => SendDeliveryPage(userId: phone)),
-                            );
-                          },
-                          child: const Text('Send Delivery'),
-                          style: _buttonStyle(),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => DeliveryHistoryPage(userId: phone)),
-                            );
-                          },
-                          child: const Text('Delivery History'),
-                          style: _buttonStyle(),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => ReceiveDeliveryPage(userId: phone)),
-                            );
-                          },
-                          child: const Text('Receive Delivery'),
-                          style: _buttonStyle(),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => RegisterPage(userPhone: phone, isRider: isRider)),
-                          );
-                        },
-                        child: const Text('Edit Profile'),
-                        style: _buttonStyle(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoText(BuildContext context, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white), textAlign: TextAlign.center),
         ],
       ),
-    );
-  }
-
-  ButtonStyle _buttonStyle() {
-    return ElevatedButton.styleFrom(
-      foregroundColor: Colors.purple,
-      backgroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.asset(
+          'assets/images/banner.png',
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      ),
     );
   }
 }
