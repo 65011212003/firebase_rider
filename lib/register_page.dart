@@ -423,12 +423,14 @@ class MapSelectionPage extends StatefulWidget {
 
 class _MapSelectionPageState extends State<MapSelectionPage> {
   LatLng? _selectedLocation;
+  final MapController _mapController = MapController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Select Location')),
       body: FlutterMap(
+        mapController: _mapController,
         options: MapOptions(
           initialCenter: const LatLng(13.7563, 100.5018), // Bangkok coordinates
           initialZoom: 10.0,
@@ -457,12 +459,34 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pop(context, _selectedLocation);
-        },
-        child: const Icon(Icons.check),
+      floatingActionButton: Container(
+        padding: const EdgeInsets.only(left: 30.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            FloatingActionButton(
+              heroTag: 'currentLocationButton',
+              onPressed: () async {
+                final location = await LocationService().getCurrentLocation();
+                final currentLocation = LatLng(location.latitude, location.longitude);
+                setState(() {
+                  _selectedLocation = currentLocation;
+                });
+                _mapController.move(currentLocation, 15.0);
+              },
+              child: const Icon(Icons.my_location),
+            ),
+            FloatingActionButton(
+              heroTag: 'confirmLocationButton',
+              onPressed: () {
+                Navigator.pop(context, _selectedLocation);
+              },
+              child: const Icon(Icons.check),
+            ),
+          ],
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

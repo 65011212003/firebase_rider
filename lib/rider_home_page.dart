@@ -9,6 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'location_service.dart';
 import 'login_page.dart';
 import 'dart:math' show cos, sqrt, asin;
+import 'package:intl/intl.dart';
 
 class RiderHomePage extends StatefulWidget {
   final String riderId;
@@ -325,15 +326,18 @@ class _RiderHomePageState extends State<RiderHomePage> {
         final delivery = snapshot.data!.data() as Map<String, dynamic>;
         final status = delivery['status'] as String;
 
-        return Column(
-          children: [
-            _buildDeliveryMap(delivery),
-            _buildDeliveryInfo(delivery),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildStatusButtons(status),
-            ),
-          ],
+        // Wrap the Column in a SingleChildScrollView
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildDeliveryMap(delivery),
+              _buildDeliveryInfo(delivery),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildStatusButtons(status),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -454,64 +458,133 @@ class _RiderHomePageState extends State<RiderHomePage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Delivery #${delivery['id']}',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildInfoRow('Status', delivery['status']),
-          _buildInfoRow('Sender', delivery['senderName'] ?? 'N/A'),
-          _buildInfoRow('Recipient', delivery['recipientName'] ?? 'N/A'),
-          _buildInfoRow('Pickup Address', delivery['pickupAddress'] ?? 'N/A'),
-          _buildInfoRow('Delivery Address', delivery['deliveryAddress'] ?? 'N/A'),
-          const SizedBox(height: 16),
-          const Text(
-            'Items:',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...(delivery['items'] as List? ?? []).map((item) => Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: ListTile(
-              title: Text(
-                item['description'] ?? '',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                ),
+      // Wrap the Column in a SingleChildScrollView if needed
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Delivery #${delivery['id']}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
-              subtitle: Text(
-                'Quantity: ${item['quantity']}',
-                style: const TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-              leading: item['imageUrl'] != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        item['imageUrl'],
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.image,
-                      size: 50,
-                      color: Colors.grey,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow('Status', delivery['status']),
+            _buildInfoRow('Sender', delivery['senderName'] ?? 'N/A'),
+            _buildInfoRow('Recipient', delivery['recipientName'] ?? 'N/A'),
+            _buildInfoRow('Pickup Address', delivery['pickupAddress'] ?? 'N/A'), 
+            _buildInfoRow('Delivery Address', delivery['deliveryAddress'] ?? 'N/A'),
+            _buildInfoRow('Created At', delivery['createdAt']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Pickup Time', delivery['pickupTime']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Delivery Time', delivery['deliveryTime']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Total Items', (delivery['items'] as List?)?.length.toString() ?? '0'),
+            _buildInfoRow('Notes', delivery['notes'] ?? 'N/A'),
+            if (delivery['pickupPhotoUrl'] != null || delivery['deliveryPhotoUrl'] != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Delivery Photos:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (delivery['pickupPhotoUrl'] != null)
+                    _buildPhotoCard(
+                      'Pickup Photo',
+                      delivery['pickupPhotoUrl'],
+                      delivery['pickupTime']?.toDate(),
+                    ),
+                  if (delivery['deliveryPhotoUrl'] != null)
+                    _buildPhotoCard(
+                      'Delivery Photo',
+                      delivery['deliveryPhotoUrl'],
+                      delivery['deliveryTime']?.toDate(),
+                    ),
+                ],
+              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Items:',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          )).toList(),
-        ],
+            const SizedBox(height: 8),
+            // Replace the existing ListView.builder for items with this updated version
+            Container(
+              constraints: const BoxConstraints(maxHeight: 300), // Increased height for better visibility
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
+                itemCount: (delivery['items'] as List? ?? []).length,
+                itemBuilder: (context, index) {
+                  final item = (delivery['items'] as List)[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          title: Text(
+                            item['description'] ?? '',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Quantity: ${item['quantity']}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        if (item['imageUrl'] != null)
+                          GestureDetector(
+                            onTap: () => _showFullScreenImage(item['imageUrl']),
+                            child: Container(
+                              width: double.infinity,
+                              height: 200,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: Image.network(
+                                item['imageUrl'],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -545,12 +618,13 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Widget _buildStatusButtons(String status) {
     final ButtonStyle buttonStyle = ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(
-        horizontal: 32,
-        vertical: 16,
+        horizontal: 16, // Reduced horizontal padding
+        vertical: 12,   // Reduced vertical padding
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
+      minimumSize: const Size(120, 40), // Set minimum size instead of using constraints
     );
 
     switch (status) {
@@ -560,7 +634,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
           onPressed: () => _updateDeliveryStatus('picked_up'),
           child: const Text(
             'Mark as Picked Up',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 14), // Reduced font size
           ),
         );
       case 'picked_up':
@@ -569,7 +643,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
           onPressed: () => _updateDeliveryStatus('delivering'),
           child: const Text(
             'Start Delivery',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 14),
           ),
         );
       case 'delivering':
@@ -578,12 +652,120 @@ class _RiderHomePageState extends State<RiderHomePage> {
           onPressed: () => _updateDeliveryStatus('completed'),
           child: const Text(
             'Complete Delivery',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 14),
           ),
         );
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                if (timestamp != null)
+                  Text(
+                    DateFormat('MMM d, y HH:mm').format(timestamp),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _showFullScreenImage(imageUrl),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 200,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Container(
+            color: Colors.black,
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        fullscreenDialog: true,
+      ),
+    );
   }
 }
 
@@ -711,3 +893,4 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
     return 8;
   }
 }
+

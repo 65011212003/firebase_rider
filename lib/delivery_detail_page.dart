@@ -4,9 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'dart:math' show cos, sqrt, asin;
-import 'package:geolocator/geolocator.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -394,6 +392,55 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                   ),
                                   child: _buildDeliveryProgress(delivery),
                                 ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Delivery Progress Photos:',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Card(
+                                      elevation: 4,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (delivery['picked_upPhotoUrl'] != null)
+                                              _buildPhotoWithTimestamp(
+                                                'Picked Up Photo',
+                                                delivery['picked_upPhotoUrl'],
+                                                delivery['pickupTime'],
+                                                Icons.inventory_2,
+                                              ),
+                                            if (delivery['allItemsImageUrl'] != null)
+                                              _buildPhotoWithTimestamp(
+                                                'All Items Photo', 
+                                                delivery['allItemsImageUrl'],
+                                                delivery['pickupTime'],
+                                                Icons.inventory,
+                                              ),
+                                            if (delivery['completedPhotoUrl'] != null)
+                                              _buildPhotoWithTimestamp(
+                                                'Completed Photo',
+                                                delivery['completedPhotoUrl'], 
+                                                delivery['deliveryTime'],
+                                                Icons.check_circle,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -652,6 +699,241 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       ),
     );
   }
+
+  // Add this new method to _DeliveryDetailPageState class
+  Widget _buildDeliveryPhotos(Map<String, dynamic> delivery) {
+    if (delivery['pickupPhotoUrl'] == null && delivery['deliveryPhotoUrl'] == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Delivery Photos:',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (delivery['pickupPhotoUrl'] != null)
+                  _buildPhotoCard(
+                    'Pickup Photo',
+                    delivery['pickupPhotoUrl'],
+                    delivery['pickupTime']?.toDate(),
+                  ),
+                if (delivery['deliveryPhotoUrl'] != null)
+                  _buildPhotoCard(
+                    'Delivery Photo',
+                    delivery['deliveryPhotoUrl'],
+                    delivery['deliveryTime']?.toDate(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (timestamp != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM d, y HH:mm').format(timestamp),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        GestureDetector(
+          onTap: () => _showFullScreenImage(imageUrl),
+          child: Container(
+            width: double.infinity,
+            height: 200,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Container(
+            color: Colors.black,
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  // Add this method inside the _DeliveryDetailPageState class
+  Widget _buildPhotoWithTimestamp(String title, String imageUrl, Timestamp? timestamp, [IconData? icon]) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (timestamp != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    if (icon != null) Icon(icon, size: 20, color: Colors.grey),
+                    if (icon != null) const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  DateFormat('MMM d, y HH:mm').format(timestamp.toDate()),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        GestureDetector(
+          onTap: () => _showFullScreenImage(imageUrl),
+          child: Container(
+            width: double.infinity,
+            height: 200,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class LocationMapWidget extends StatefulWidget {
@@ -778,3 +1060,4 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
     return 8;
   }
 }
+
