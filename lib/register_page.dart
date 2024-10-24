@@ -87,7 +87,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } on MissingPluginException catch (e) {
       developer.log('Error picking image: $e', name: 'RegisterPage');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: const Text('Image picker plugin not available. Please check your configuration.')),
+        const SnackBar(content: Text('Image picker plugin not available. Please check your configuration.')),
       );
     } catch (e) {
       developer.log('Error picking image: $e', name: 'RegisterPage');
@@ -357,8 +357,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         borderRadius: BorderRadius.circular(12),
                         child: FlutterMap(
                           options: MapOptions(
-                            initialCenter: _selectedLocation!,
-                            initialZoom: 15,
+                            center: _selectedLocation!,
+                            zoom: 15,
                           ),
                           children: [
                             TileLayer(
@@ -474,8 +474,8 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: const LatLng(13.7563, 100.5018), // Bangkok coordinates
-          initialZoom: 10.0,
+          center: const LatLng(13.7563, 100.5018), // Bangkok coordinates
+          zoom: 10.0,
           onTap: (tapPosition, point) {
             setState(() {
               _selectedLocation = point;
@@ -494,7 +494,10 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
                       width: 80.0,
                       height: 80.0,
                       point: _selectedLocation!,
-                      child: const Icon(Icons.location_pin, color: Colors.red),
+                      child: const Icon(
+                        Icons.location_pin,
+                        color: Colors.red,
+                      ),
                     ),
                   ]
                 : [],

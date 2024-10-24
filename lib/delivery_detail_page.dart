@@ -15,12 +15,12 @@ class DeliveryDetailPage extends StatefulWidget {
   final String deliveryId;
 
   const DeliveryDetailPage({
-    Key? key, 
+    super.key,
     required this.deliveryId,
-  }) : super(key: key);
+  });
 
   @override
-  _DeliveryDetailPageState createState() => _DeliveryDetailPageState();
+  State<DeliveryDetailPage> createState() => _DeliveryDetailPageState();
 }
 
 class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
@@ -45,15 +45,24 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       final data = json.decode(response.body);
       final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
       final distance = data['routes'][0]['distance'] as num;
+      
+      // Convert coordinates to List<LatLng>
+      List<LatLng> routePoints = [];
+      for (var coord in coordinates) {
+        if (coord is List && coord.length >= 2) {
+          double lng = (coord[0] as num).toDouble();
+          double lat = (coord[1] as num).toDouble();
+          routePoints.add(LatLng(lat, lng));
+        }
+      }
+      
       return {
         "isError": false,
         "distance": (distance / 1000),
-        "routePoints": coordinates
-            .map((coord) => LatLng(coord[1] as double, coord[0] as double))
-            .toList()
+        "routePoints": routePoints
       };
     }
-    return {"isError": true, "routePoints": [], "distance": -1};
+    return {"isError": true, "routePoints": <LatLng>[], "distance": -1};
   }
 
   @override
@@ -765,7 +774,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     super.initState();
     _listenToRiderLocation();
     // Start periodic updates
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       _updateEstimates();
     });
   }
@@ -827,7 +836,11 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                 width: 80.0,
                 height: 80.0,
                 point: riderLocation,
-                child: const Icon(Icons.delivery_dining, color: Colors.red, size: 40),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  color: Colors.red,
+                  size: 40,
+                ),
               ),
             ],
           ),
@@ -885,13 +898,156 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     );
   }
 
-  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+  // Add these methods to the _DeliveryDetailPageState class
+
+  void _initializeTracking(Map<String, dynamic> delivery) {
+    if (delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') {
+      // Start location updates
+      _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+        _updateEstimates();
+      });
+    }
+  }
+
+  Widget _buildPhotoWithTimestamp(
+    String title,
+    String imageUrl,
+    Timestamp? timestamp,
+    [IconData? icon]
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            if (icon != null) Icon(icon, color: Colors.purple),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         if (timestamp != null)
+          Text(
+            DateFormat('MMM d, y HH:mm').format(timestamp.toDate()),
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => _showFullScreenImage(imageUrl),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: 200,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLiveTrackingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Live Tracking Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    const Icon(Icons.timer),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Est. Time',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    Text(_estimatedTime),
+                  ],
+                ),
+                Column(
+                  children: [
+                    const Icon(Icons.directions_car),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Distance',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    Text('${_estimatedDistance.toStringAsFixed(1)} km'),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _updateEstimates() async {
+    if (_riderLocation == null) return;
+
+    try {
+      // Get the delivery document
+      final deliveryDoc = await FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(widget.deliveryId)
+          .get();
+
+      if (!deliveryDoc.exists) return;
+
+      final delivery = deliveryDoc.data() as Map<String, dynamic>;
+      final deliveryLocation = delivery['deliveryLocation'] as GeoPoint;
+      final destination = LatLng(deliveryLocation.latitude, deliveryLocation.longitude);
+
+      // Calculate route and update estimates
+      final result = await findDistance(
+        _riderLocation!.latitude,
+        _riderLocation!.longitude,
+        destination.latitude,
+        destination.longitude,
+      );
+
+      if (!result['isError']) {
+        setState(() {
+          _estimatedDistance = result['distance'];
+          // Assuming average speed of 30 km/h
+          final timeInMinutes = (_estimatedDistance / 30 * 60).round();
+          _estimatedTime = '$timeInMinutes min';
+        });
+      }
+    } catch (e) {
+      print('Error updating estimates: $e');
+    }
+  }
+
+  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            padding: const EdgeInsets.all(8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -902,56 +1058,28 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  DateFormat('MMM d, y HH:mm').format(timestamp),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
+                if (timestamp != null)
+                  Text(
+                    DateFormat('MMM d, y HH:mm').format(timestamp),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-        GestureDetector(
-          onTap: () => _showFullScreenImage(imageUrl),
-          child: Container(
-            width: double.infinity,
-            height: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
+          GestureDetector(
+            onTap: () => _showFullScreenImage(imageUrl),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 200,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -969,434 +1097,12 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                ),
+                child: Image.network(imageUrl),
               ),
             ),
           ),
         ),
-        fullscreenDialog: true,
       ),
     );
-  }
-
-  // Add this method inside the _DeliveryDetailPageState class
-  Widget _buildPhotoWithTimestamp(String title, String imageUrl, Timestamp? timestamp, [IconData? icon]) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (timestamp != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    if (icon != null) Icon(icon, size: 20, color: Colors.grey),
-                    if (icon != null) const SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  DateFormat('MMM d, y HH:mm').format(timestamp.toDate()),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        GestureDetector(
-          onTap: () => _showFullScreenImage(imageUrl),
-          child: Container(
-            width: double.infinity,
-            height: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Add this method to initialize the tracking
-  void _initializeTracking(Map<String, dynamic> delivery) {
-    if ((delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') && 
-        delivery['riderId'] != null) {
-      _deliverySubscription = FirebaseFirestore.instance
-          .collection('deliveries')
-          .doc(widget.deliveryId)
-          .snapshots()
-          .listen((snapshot) async {
-        if (!snapshot.exists) return;
-        
-        final deliveryData = snapshot.data() as Map<String, dynamic>;
-        if (deliveryData['riderLocation'] != null) {
-          final location = deliveryData['riderLocation'] as GeoPoint;
-          final destination = deliveryData['status'] == 'picked_up'
-              ? deliveryData['deliveryLocation'] as GeoPoint
-              : deliveryData['pickupLocation'] as GeoPoint;
-          
-          final routeResult = await findDistance(
-            location.latitude,
-            location.longitude,
-            destination.latitude,
-            destination.longitude,
-          );
-
-          if (mounted) {
-            setState(() {
-              _riderLocation = LatLng(location.latitude, location.longitude);
-              _routePoints = routeResult['routePoints'] as List<LatLng>;
-              _estimatedDistance = routeResult['distance'] as double;
-              final timeInMinutes = (_estimatedDistance / 30) * 60;
-              _estimatedTime = '${timeInMinutes.round()} min';
-            });
-            
-            // Center map on rider location
-            _mapController.move(_riderLocation!, 15);
-          }
-        }
-      });
-    }
-  }
-
-  // Add this method to clean up subscription
-  @override
-  void dispose() {
-    _locationUpdateTimer?.cancel();
-    _deliverySubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _updateEstimates() async {
-    if (_riderLocation != null && mounted) {
-      final delivery = await FirebaseFirestore.instance
-          .collection('deliveries')
-          .doc(widget.deliveryId)
-          .get();
-      
-      final data = delivery.data();
-      if (data == null) return;
-
-      final destinationPoint = data['status'] == 'picked_up' 
-          ? data['deliveryLocation']
-          : data['pickupLocation'];
-
-      if (destinationPoint == null) return;
-
-      final result = await findDistance(
-        _riderLocation!.latitude,
-        _riderLocation!.longitude,
-        destinationPoint.latitude,
-        destinationPoint.longitude,
-      );
-
-      if (mounted) {
-        setState(() {
-          _estimatedDistance = result['distance'];
-          // Assuming average speed of 30 km/h
-          final timeInMinutes = (_estimatedDistance / 30) * 60;
-          _estimatedTime = '${timeInMinutes.round()} min';
-        });
-      }
-    }
-  }
-
-  // Add this widget where you want to show the live tracking interface
-  Widget _buildLiveTrackingCard() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Container(
-            height: 300,
-            padding: const EdgeInsets.all(8),
-            child: _riderLocation == null 
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _riderLocation!,
-                      initialZoom: 15,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: const ['a', 'b', 'c'],
-                      ),
-                      if (_routePoints.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: _routePoints,
-                              color: Colors.blue,
-                              strokeWidth: 4,
-                            ),
-                          ],
-                        ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            width: 50,
-                            height: 50,
-                            point: _riderLocation!,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.3),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.delivery_dining,
-                                color: Colors.blue,
-                                size: 30,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildTrackingInfo(
-                  Icons.timer,
-                  'Estimated Time',
-                  _estimatedTime,
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: Colors.grey[300],
-                ),
-                _buildTrackingInfo(
-                  Icons.directions_bike,
-                  'Distance',
-                  '${_estimatedDistance.toStringAsFixed(1)} km',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrackingInfo(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.blue, size: 30),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ],
-    );
-  }
-  
-}
-
-class LocationMapWidget extends StatefulWidget {
-  final LatLng pickupLocation;
-  final LatLng deliveryLocation;
-
-  const LocationMapWidget({
-    Key? key,
-    required this.pickupLocation,
-    required this.deliveryLocation,
-  }) : super(key: key);
-
-  @override
-  _LocationMapWidgetState createState() => _LocationMapWidgetState();
-}
-
-class _LocationMapWidgetState extends State<LocationMapWidget> {
-  List<LatLng> routePoints = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRoute();
-  }
-
-  Future<void> _loadRoute() async {
-    final points = await LocationService.getRoute(
-      widget.pickupLocation,
-      widget.deliveryLocation,
-    );
-    setState(() {
-      routePoints = points;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final center = LatLng(
-      (widget.pickupLocation.latitude + widget.deliveryLocation.latitude) / 2,
-      (widget.pickupLocation.longitude + widget.deliveryLocation.longitude) / 2,
-    );
-
-    final distance = calculateDistance(widget.pickupLocation, widget.deliveryLocation);
-    final zoom = calculateZoomLevel(distance);
-
-    return Container(
-      height: 300,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: center,
-            initialZoom: zoom,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c'],
-            ),
-            // Draw the route
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: routePoints,
-                  color: Colors.blue.shade600,
-                  strokeWidth: 4.0,
-                ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  width: 40.0,
-                  height: 40.0,
-                  point: widget.pickupLocation,
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.green,
-                    size: 40,
-                  ),
-                ),
-                Marker(
-                  width: 40.0,
-                  height: 40.0,
-                  point: widget.deliveryLocation,
-                  child: const Icon(
-                    Icons.flag,
-                    color: Colors.red,
-                    size: 40,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double calculateDistance(LatLng point1, LatLng point2) {
-    var p = 0.017453292519943295;
-    var c = cos;
-    var a = 0.5 - c((point2.latitude - point1.latitude) * p)/2 + 
-            c(point1.latitude * p) * c(point2.latitude * p) * 
-            (1 - c((point2.longitude - point1.longitude) * p))/2;
-    return 12742 * asin(sqrt(a));
-  }
-
-  double calculateZoomLevel(double distance) {
-    if (distance < 1) return 14;
-    if (distance < 5) return 12;
-    if (distance < 10) return 11;
-    if (distance < 50) return 9;
-    return 8;
   }
 }
-

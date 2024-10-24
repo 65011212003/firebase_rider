@@ -404,8 +404,8 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
       height: 300,
       child: FlutterMap(
         options: MapOptions(
-          initialCenter: _riderLocations.values.first,
-          initialZoom: 13,
+          center: _riderLocations.values.first, // Changed from initialCenter
+          zoom: 13, // Changed from initialZoom
         ),
         children: [
           TileLayer(
@@ -468,7 +468,7 @@ class RecipientInfoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('ที่อยู่ผู้รับ: $address'),
+            Text('ท��่อยู่ผู้รับ: $address'),
             Text('โทรศัพท์: $phone'),
           ],
         ),
