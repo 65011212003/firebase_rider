@@ -29,7 +29,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
   String? _activeDeliveryId;
   bool _isLoading = true;
   final LocationService _locationService = LocationService();
-  final double _maxDeliveryRadius = 200; // Maximum radius in meters
+  final double _maxDeliveryRadius = 20; // Maximum radius in meters
   StreamSubscription<Position>? _positionStreamSubscription; // New variable for location stream
 
   @override
@@ -75,7 +75,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
   void _startLocationUpdates() {
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update every 10 meters
+      distanceFilter: 2, // Update every 10 meters
     );
 
     _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
