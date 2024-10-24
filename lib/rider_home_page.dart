@@ -829,8 +829,8 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
         borderRadius: BorderRadius.circular(12),
         child: FlutterMap(
           options: MapOptions(
-            initialCenter: center,
-            initialZoom: zoom,
+            center: center, // Changed from initialCenter
+            zoom: zoom, // Changed from initialZoom
           ),
           children: [
             TileLayer(

@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -403,8 +402,8 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
       height: 300,
       child: FlutterMap(
         options: MapOptions(
-          initialCenter: _riderLocations.values.first,
-          initialZoom: 13,
+          center: _riderLocations.values.first, // Changed from initialCenter
+          zoom: 13, // Changed from initialZoom
         ),
         children: [
           TileLayer(
@@ -467,7 +466,7 @@ class RecipientInfoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('ที่อยู่ผู้รับ: $address'),
+            Text('ท��่อยู่ผู้รับ: $address'),
             Text('โทรศัพท์: $phone'),
           ],
         ),
@@ -542,12 +541,36 @@ class _AddItemDialogState extends State<AddItemDialog> {
   XFile? _image;
 
   Future<void> _pickImage(ImageSource source) async {
-    final ImagePicker _picker = ImagePicker();
-    final XFile? image = await _picker.pickImage(source: source);
-    if (image != null) {
-      setState(() {
-        _image = image;
-      });
+    try {
+      // Request camera permission
+      if (source == ImageSource.camera) {
+        final status = await Permission.camera.request();
+        if (status.isDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Camera permission is required')),
+          );
+          return;
+        }
+      }
+
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        imageQuality: 85, // Add image quality compression
+        maxWidth: 1024,   // Limit max width
+        maxHeight: 1024,  // Limit max height
+      );
+      
+      if (image != null) {
+        setState(() {
+          _image = image;
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to pick image. Please try again.')),
+      );
     }
   }
 

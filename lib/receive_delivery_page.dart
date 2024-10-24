@@ -148,8 +148,8 @@ class _ReceiveDeliveryPageState extends State<ReceiveDeliveryPage> {
                       margin: const EdgeInsets.all(16),
                       child: FlutterMap(
                         options: MapOptions(
-                          initialCenter: riderLocation,
-                          initialZoom: 15,
+                          center: riderLocation, // Changed from initialCenter
+                          zoom: 15, // Changed from initialZoom
                         ),
                         children: [
                           TileLayer(

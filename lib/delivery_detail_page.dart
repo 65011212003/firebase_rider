@@ -9,17 +9,18 @@ import 'package:easy_stepper/easy_stepper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'location_service.dart';
+import 'dart:async';
 
 class DeliveryDetailPage extends StatefulWidget {
   final String deliveryId;
 
   const DeliveryDetailPage({
-    Key? key, 
+    super.key,
     required this.deliveryId,
-  }) : super(key: key);
+  });
 
   @override
-  _DeliveryDetailPageState createState() => _DeliveryDetailPageState();
+  State<DeliveryDetailPage> createState() => _DeliveryDetailPageState();
 }
 
 class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
@@ -27,6 +28,13 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   LatLng? _riderLocation;
   final MapController _mapController = MapController();
   List<LatLng> polylineCoordinates = [];
+  StreamSubscription<DocumentSnapshot>? _deliverySubscription;
+  List<LatLng> _routePoints = [];
+
+  // Add these variables
+  Timer? _locationUpdateTimer;
+  double _estimatedDistance = 0.0;
+  String _estimatedTime = 'Calculating...';
 
   Future<Map<String, dynamic>> findDistance(
       double startLat, double startLong, double endLat, double endLong) async {
@@ -37,15 +45,24 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       final data = json.decode(response.body);
       final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
       final distance = data['routes'][0]['distance'] as num;
+      
+      // Convert coordinates to List<LatLng>
+      List<LatLng> routePoints = [];
+      for (var coord in coordinates) {
+        if (coord is List && coord.length >= 2) {
+          double lng = (coord[0] as num).toDouble();
+          double lat = (coord[1] as num).toDouble();
+          routePoints.add(LatLng(lat, lng));
+        }
+      }
+      
       return {
         "isError": false,
         "distance": (distance / 1000),
-        "routePoints": coordinates
-            .map((coord) => LatLng(coord[1] as double, coord[0] as double))
-            .toList()
+        "routePoints": routePoints
       };
     }
-    return {"isError": true, "routePoints": [], "distance": -1};
+    return {"isError": true, "routePoints": <LatLng>[], "distance": -1};
   }
 
   @override
@@ -148,6 +165,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
               final GeoPoint location = delivery['riderLocation'];
               riderLocation = LatLng(location.latitude, location.longitude);
             }
+
+            // Initialize tracking when delivery data is available
+            _initializeTracking(delivery);
 
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
@@ -441,6 +461,127 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                     ),
                                   ],
                                 ),
+                                // Add this widget after _buildDeliveryMap:
+                                if (delivery['status'] == 'delivering' && _riderLocation != null)
+                                  Column(
+                                    children: [
+                                      Container(
+                                        height: 300,
+                                        margin: const EdgeInsets.symmetric(vertical: 16),
+                                        child: FlutterMap(
+                                          options: MapOptions(
+                                            initialCenter: _riderLocation!,
+                                            initialZoom: 15,
+                                          ),
+                                          children: [
+                                            TileLayer(
+                                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                              subdomains: const ['a', 'b', 'c'],
+                                            ),
+                                            if (_routePoints.isNotEmpty)
+                                              PolylineLayer(
+                                                polylines: [
+                                                  Polyline(
+                                                    points: _routePoints,
+                                                    color: Colors.blue,
+                                                    strokeWidth: 3.0,
+                                                  ),
+                                                ],
+                                              ),
+                                            MarkerLayer(
+                                              markers: [
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: LatLng(
+                                                    delivery['pickupLocation'].latitude,
+                                                    delivery['pickupLocation'].longitude,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.location_on,
+                                                    color: Colors.green,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: LatLng(
+                                                    delivery['deliveryLocation'].latitude,
+                                                    delivery['deliveryLocation'].longitude,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.flag,
+                                                    color: Colors.red,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: _riderLocation!,
+                                                  child: const Icon(
+                                                    Icons.delivery_dining,
+                                                    color: Colors.blue,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Card(
+                                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                            children: [
+                                              Column(
+                                                children: [
+                                                  const Icon(Icons.timer, color: Colors.blue),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Est. Time',
+                                                    style: TextStyle(color: Colors.grey[600]),
+                                                  ),
+                                                  const Text('15-20 min'),
+                                                ],
+                                              ),
+                                              Column(
+                                                children: [
+                                                  const Icon(Icons.directions_bike, color: Colors.blue),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Distance',
+                                                    style: TextStyle(color: Colors.grey[600]),
+                                                  ),
+                                                  const Text('2.5 km'),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                // Inside your build method, where you want to show the tracking interface
+                                // Add this after the delivery progress stepper and before the photos section
+
+                                if (delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') ...[
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Live Tracking:',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildLiveTrackingCard(),
+                                ]
                               ],
                             ),
                           ),
@@ -632,6 +773,10 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   void initState() {
     super.initState();
     _listenToRiderLocation();
+    // Start periodic updates
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      _updateEstimates();
+    });
   }
 
   void _listenToRiderLocation() {
@@ -691,7 +836,11 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                 width: 80.0,
                 height: 80.0,
                 point: riderLocation,
-                child: const Icon(Icons.delivery_dining, color: Colors.red, size: 40),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  color: Colors.red,
+                  size: 40,
+                ),
               ),
             ],
           ),
@@ -749,13 +898,156 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     );
   }
 
-  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+  // Add these methods to the _DeliveryDetailPageState class
+
+  void _initializeTracking(Map<String, dynamic> delivery) {
+    if (delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') {
+      // Start location updates
+      _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+        _updateEstimates();
+      });
+    }
+  }
+
+  Widget _buildPhotoWithTimestamp(
+    String title,
+    String imageUrl,
+    Timestamp? timestamp,
+    [IconData? icon]
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            if (icon != null) Icon(icon, color: Colors.purple),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         if (timestamp != null)
+          Text(
+            DateFormat('MMM d, y HH:mm').format(timestamp.toDate()),
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => _showFullScreenImage(imageUrl),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: 200,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLiveTrackingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Live Tracking Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    const Icon(Icons.timer),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Est. Time',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    Text(_estimatedTime),
+                  ],
+                ),
+                Column(
+                  children: [
+                    const Icon(Icons.directions_car),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Distance',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    Text('${_estimatedDistance.toStringAsFixed(1)} km'),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _updateEstimates() async {
+    if (_riderLocation == null) return;
+
+    try {
+      // Get the delivery document
+      final deliveryDoc = await FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(widget.deliveryId)
+          .get();
+
+      if (!deliveryDoc.exists) return;
+
+      final delivery = deliveryDoc.data() as Map<String, dynamic>;
+      final deliveryLocation = delivery['deliveryLocation'] as GeoPoint;
+      final destination = LatLng(deliveryLocation.latitude, deliveryLocation.longitude);
+
+      // Calculate route and update estimates
+      final result = await findDistance(
+        _riderLocation!.latitude,
+        _riderLocation!.longitude,
+        destination.latitude,
+        destination.longitude,
+      );
+
+      if (!result['isError']) {
+        setState(() {
+          _estimatedDistance = result['distance'];
+          // Assuming average speed of 30 km/h
+          final timeInMinutes = (_estimatedDistance / 30 * 60).round();
+          _estimatedTime = '$timeInMinutes min';
+        });
+      }
+    } catch (e) {
+      print('Error updating estimates: $e');
+    }
+  }
+
+  Widget _buildPhotoCard(String title, String imageUrl, DateTime? timestamp) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            padding: const EdgeInsets.all(8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -766,56 +1058,28 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  DateFormat('MMM d, y HH:mm').format(timestamp),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
+                if (timestamp != null)
+                  Text(
+                    DateFormat('MMM d, y HH:mm').format(timestamp),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-        GestureDetector(
-          onTap: () => _showFullScreenImage(imageUrl),
-          child: Container(
-            width: double.infinity,
-            height: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
+          GestureDetector(
+            onTap: () => _showFullScreenImage(imageUrl),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 200,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -833,231 +1097,12 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                ),
+                child: Image.network(imageUrl),
               ),
             ),
           ),
         ),
-        fullscreenDialog: true,
       ),
     );
   }
-
-  // Add this method inside the _DeliveryDetailPageState class
-  Widget _buildPhotoWithTimestamp(String title, String imageUrl, Timestamp? timestamp, [IconData? icon]) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (timestamp != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    if (icon != null) Icon(icon, size: 20, color: Colors.grey),
-                    if (icon != null) const SizedBox(width: 8),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  DateFormat('MMM d, y HH:mm').format(timestamp.toDate()),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        GestureDetector(
-          onTap: () => _showFullScreenImage(imageUrl),
-          child: Container(
-            width: double.infinity,
-            height: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
-
-class LocationMapWidget extends StatefulWidget {
-  final LatLng pickupLocation;
-  final LatLng deliveryLocation;
-
-  const LocationMapWidget({
-    Key? key,
-    required this.pickupLocation,
-    required this.deliveryLocation,
-  }) : super(key: key);
-
-  @override
-  _LocationMapWidgetState createState() => _LocationMapWidgetState();
-}
-
-class _LocationMapWidgetState extends State<LocationMapWidget> {
-  List<LatLng> routePoints = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRoute();
-  }
-
-  Future<void> _loadRoute() async {
-    final points = await LocationService.getRoute(
-      widget.pickupLocation,
-      widget.deliveryLocation,
-    );
-    setState(() {
-      routePoints = points;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final center = LatLng(
-      (widget.pickupLocation.latitude + widget.deliveryLocation.latitude) / 2,
-      (widget.pickupLocation.longitude + widget.deliveryLocation.longitude) / 2,
-    );
-
-    final distance = calculateDistance(widget.pickupLocation, widget.deliveryLocation);
-    final zoom = calculateZoomLevel(distance);
-
-    return Container(
-      height: 300,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: center,
-            initialZoom: zoom,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c'],
-            ),
-            // Draw the route
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: routePoints,
-                  color: Colors.blue.shade600,
-                  strokeWidth: 4.0,
-                ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  width: 40.0,
-                  height: 40.0,
-                  point: widget.pickupLocation,
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.green,
-                    size: 40,
-                  ),
-                ),
-                Marker(
-                  width: 40.0,
-                  height: 40.0,
-                  point: widget.deliveryLocation,
-                  child: const Icon(
-                    Icons.flag,
-                    color: Colors.red,
-                    size: 40,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double calculateDistance(LatLng point1, LatLng point2) {
-    var p = 0.017453292519943295;
-    var c = cos;
-    var a = 0.5 - c((point2.latitude - point1.latitude) * p)/2 + 
-            c(point1.latitude * p) * c(point2.latitude * p) * 
-            (1 - c((point2.longitude - point1.longitude) * p))/2;
-    return 12742 * asin(sqrt(a));
-  }
-
-  double calculateZoomLevel(double distance) {
-    if (distance < 1) return 14;
-    if (distance < 5) return 12;
-    if (distance < 10) return 11;
-    if (distance < 50) return 9;
-    return 8;
-  }
-}
-

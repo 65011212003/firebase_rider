@@ -87,7 +87,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } on MissingPluginException catch (e) {
       developer.log('Error picking image: $e', name: 'RegisterPage');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: const Text('Image picker plugin not available. Please check your configuration.')),
+        const SnackBar(content: Text('Image picker plugin not available. Please check your configuration.')),
       );
     } catch (e) {
       developer.log('Error picking image: $e', name: 'RegisterPage');
@@ -339,15 +339,57 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ],
                   ),
-                  if (_selectedLocation != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'Selected Location: ${_selectedLocation!.latitude.toStringAsFixed(4)}, '
-                        '${_selectedLocation!.longitude.toStringAsFixed(4)}',
-                        style: const TextStyle(color: Colors.white),
+                  if (_selectedLocation != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: FlutterMap(
+                          options: MapOptions(
+                            center: _selectedLocation!,
+                            zoom: 15,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  width: 40,
+                                  height: 40,
+                                  point: _selectedLocation!,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Colors.red,
+                                    size: 40,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Selected Location: ${_selectedLocation!.latitude.toStringAsFixed(4)}, '
+                      '${_selectedLocation!.longitude.toStringAsFixed(4)}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
                   if (widget.isRider) ...[
                     _buildTextField(_vehicleTypeController, 'Vehicle Type'),
                     _buildTextField(_licenseNumberController, 'License Number'),
@@ -432,8 +474,8 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: const LatLng(13.7563, 100.5018), // Bangkok coordinates
-          initialZoom: 10.0,
+          center: const LatLng(13.7563, 100.5018), // Bangkok coordinates
+          zoom: 10.0,
           onTap: (tapPosition, point) {
             setState(() {
               _selectedLocation = point;
@@ -452,7 +494,10 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
                       width: 80.0,
                       height: 80.0,
                       point: _selectedLocation!,
-                      child: const Icon(Icons.location_pin, color: Colors.red),
+                      child: const Icon(
+                        Icons.location_pin,
+                        color: Colors.red,
+                      ),
                     ),
                   ]
                 : [],
