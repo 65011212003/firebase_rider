@@ -70,12 +70,13 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Delivery Details',
+          'Delivery Details', 
           style: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w600, 
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.purple.shade400,
+        backgroundColor: Color(0xFF5300F9), // Updated color
         elevation: 0,
       ),
       body: Container(
@@ -84,8 +85,8 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.purple.shade200,
-              Colors.purple.shade400,
+              Color(0xFF5300F9).withOpacity(0.5), // Updated color with opacity
+              Color(0xFF5300F9), // Updated color
             ],
           ),
         ),

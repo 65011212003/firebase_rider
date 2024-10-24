@@ -18,8 +18,8 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('เบอร์โทรศัพท์ผู้รับ'),
-        backgroundColor: Colors.purple.shade400,
+        title: const Text('เบอร์โทรศัพท์ผู้รับ', style: TextStyle(color: Colors.white),),
+        backgroundColor: Color(0xFF5300F9),
       ),
       body: Column(
         children: [
@@ -86,7 +86,10 @@ class _SelectRecipientPageState extends State<SelectRecipientPage> {
                           ],
                         ),
                         trailing: ElevatedButton(
-                          child: Text('ส่งสินค้า'),
+                          child: Text('ส่งสินค้า', style: TextStyle(color: Colors.white),),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF5300F9),
+                          ),
                           onPressed: () {
                             Navigator.push(
                               context,

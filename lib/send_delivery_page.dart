@@ -256,8 +256,8 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ข้อมูลการจัดส่งสินค้า'),
-        backgroundColor: Colors.purple.shade400,
+        title: const Text('ข้อมูลการจัดส่งสินค้า', style: TextStyle(color: Colors.white),),
+        backgroundColor: Color(0xFF5300F9),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -328,7 +328,7 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
             onPressed: () => setState(() => _currentStep = 1),
             child: const Text('ถัดไป'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
+              backgroundColor: Color(0xFF5300F9),
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 50),
             ),
@@ -468,7 +468,7 @@ class RecipientInfoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('ท��่อยู่ผู้รับ: $address'),
+            Text('ที่อยู่ผู้รับ: $address'),
             Text('โทรศัพท์: $phone'),
           ],
         ),
@@ -497,8 +497,8 @@ class DeliveryProgressIndicator extends StatelessWidget {
   Widget _buildProgressItem(IconData icon, String label, bool isActive) {
     return Column(
       children: [
-        Icon(icon, color: isActive ? Colors.purple : Colors.grey),
-        Text(label, style: TextStyle(color: isActive ? Colors.purple : Colors.grey)),
+        Icon(icon, color: isActive ? Color(0xFF5300F9) : Colors.grey),
+        Text(label, style: TextStyle(color: isActive ? Color(0xFF5300F9) : Colors.grey)),
       ],
     );
   }
@@ -606,14 +606,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () => _pickImage(ImageSource.camera),
-                          icon: const Icon(Icons.camera_alt, color: Colors.purple),
-                          label: const Text('เลือกรูป', style: TextStyle(color: Colors.purple)),
+                          icon: const Icon(Icons.camera_alt, color: Color(0xFF5300F9)),
+                          label: const Text('เลือกรูป', style: TextStyle(color: Color(0xFF5300F9))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: const BorderSide(color: Colors.purple),
+                              side: const BorderSide(color: Color(0xFF5300F9)),
                             ),
                           ),
                         ),
@@ -622,14 +622,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () => _pickImage(ImageSource.gallery),
-                          icon: const Icon(Icons.photo_library, color: Colors.purple),
-                          label: const Text('ถ่ายรูป', style: TextStyle(color: Colors.purple)),
+                          icon: const Icon(Icons.photo_library, color: Color(0xFF5300F9)),
+                          label: const Text('ถ่ายรูป', style: TextStyle(color: Color(0xFF5300F9))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: const BorderSide(color: Colors.purple),
+                              side: const BorderSide(color: Color(0xFF5300F9)),
                             ),
                           ),
                         ),
@@ -693,7 +693,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               ));
             }
           },
-          child: const Text('เพิ่ม', style: TextStyle(color: Colors.purple)),
+          child: const Text('เพิ่ม', style: TextStyle(color: Color(0xFF5300F9))),
         ),
       ],
     );

@@ -286,8 +286,8 @@
           appBar: AppBar(
             title: Text(_isEditMode
                 ? 'Edit Profile'
-                : 'Register ${widget.isRider ? 'Rider' : 'User'}'),
-            backgroundColor: Colors.purple.shade400,
+                : 'Register ${widget.isRider ? 'Rider' : 'User'}', style: TextStyle(color: Colors.white),),
+            backgroundColor: Color(0xFF5300F9),
           ),
           body: Container(
             decoration: BoxDecoration(
@@ -363,7 +363,7 @@
                                   : const Icon(
                                       Icons.add_a_photo,
                                       size: 50,
-                                      color: Colors.purple,
+                                      color: Color(0xFF5300F9),
                                     )),
                         ),
                       ),
@@ -478,12 +478,15 @@
                         ),
                       ],
                       if (widget.isRider) ...[
+                        const SizedBox(height: 16), // Add this line to create space above the Vehicle Type field
                         _buildTextField(
-                            _vehicleTypeController,
-                            'Vehicle Type'),
+                          _vehicleTypeController,
+                          'Vehicle Type',
+                        ),
                         _buildTextField(
-                            _licenseNumberController,
-                            'License Number'),
+                          _licenseNumberController,
+                          'License Number',
+                        ),
                       ],
                       const SizedBox(height: 20),
                       ElevatedButton(
@@ -546,7 +549,7 @@
     
       ButtonStyle _buttonStyle() {
         return ElevatedButton.styleFrom(
-          foregroundColor: Colors.purple,
+          foregroundColor: Color(0xFF5300F9),
           backgroundColor: Colors.white,
           padding:
               const EdgeInsets.symmetric(vertical: 16),
@@ -664,3 +667,4 @@
         );
       }
     }
+

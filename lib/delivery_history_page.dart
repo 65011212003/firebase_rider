@@ -30,14 +30,15 @@ class _DeliveryHistoryPageState extends State<DeliveryHistoryPage> with SingleTi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Delivery History'),
-        backgroundColor: Colors.purple.shade400,
+     appBar: AppBar(
+        title: const Text('Delivery History ', style: TextStyle(color: Colors.white),),
+        backgroundColor: Color(0xFF5300F9),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white, // เพิ่มบรรทัดนี้เพื่อกำหนดสีข้อความ Tab
           tabs: const [
-            Tab(text: 'Sent'),
-            Tab(text: 'Received'),
+            Tab(text: 'Sent',),
+            Tab(text: 'Received',),
           ],
         ),
       ),

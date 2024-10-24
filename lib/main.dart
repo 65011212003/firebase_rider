@@ -29,7 +29,18 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'good2go',
       theme: ThemeData(
-        primarySwatch: Colors.purple,
+        primarySwatch: MaterialColor(0xFF5300F9, {
+          50: Color(0xFFEDE7FF),
+          100: Color(0xFFD1C4FF),
+          200: Color(0xFFB39DFF),
+          300: Color(0xFF9575FF),
+          400: Color(0xFF7E57FF),
+          500: Color(0xFF5300F9),
+          600: Color(0xFF4A00E5),
+          700: Color(0xFF4200D1),
+          800: Color(0xFF3900BD),
+          900: Color(0xFF2E0099),
+        }),
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.itimTextTheme(),
       ),
@@ -221,7 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         context,
                         Icons.local_shipping,
                         'Send',
-                        Colors.purple,
+                        Color(0xFF5300F9),
                         _navigateToSendDelivery,
                       ),
                       _buildMenuButton(
@@ -284,7 +295,8 @@ class MapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Delivery Map (Pending)'),
+        title: Text('Delivery Map (Pending)', style: TextStyle(color: Colors.white),),
+        backgroundColor: Color(0xFF5300F9),
       ),
       body: FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance
