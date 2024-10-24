@@ -9,6 +9,7 @@ import 'delivery_history_page.dart';
 import 'rider_home_page.dart';
 import 'receive_delivery_page.dart';
 import 'select_recipient_page.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.purple,
         scaffoldBackgroundColor: Colors.white,
+        textTheme: GoogleFonts.itimTextTheme(),
       ),
       home: const LoginPage(),
     );
@@ -129,14 +131,14 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('good2go', style: TextStyle(color: Colors.black)),
+        title: Text('good2go', style: GoogleFonts.lobster(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
             icon: CircleAvatar(
               backgroundColor: Colors.grey[200],
-              child: const Icon(Icons.person, color: Colors.black),
+              child: Icon(Icons.person, color: Colors.black),
             ),
             onSelected: (value) {
               if (value == 'edit') {
@@ -146,13 +148,13 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'edit',
-                child: Text('Edit Profile'),
+                child: Text('Edit Profile', style: GoogleFonts.itim()),
               ),
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'signout',
-                child: Text('Sign Out'),
+                child: Text('Sign Out', style: GoogleFonts.itim()),
               ),
             ],
           ),
@@ -167,11 +169,11 @@ class _MyHomePageState extends State<MyHomePage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}', style: GoogleFonts.itim()));
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('User data not found'));
+            return Center(child: Text('User data not found', style: GoogleFonts.itim()));
           }
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
@@ -185,19 +187,19 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Text(
                     'Welcome, $userName!',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Order your favourite food!',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 24),
                   DeliveryBanner(),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Menus',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -243,7 +245,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Icon(icon, size: 40, color: color),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: GoogleFonts.itim(fontWeight: FontWeight.bold)),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'main.dart';
 import 'choose_registration_type.dart';
 import 'rider_home_page.dart';
@@ -114,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.purple.shade200, Colors.purple.shade400],
+            colors: [Colors.white, Color(0xFF5300F9)],
           ),
         ),
         child: SafeArea(
@@ -126,10 +127,10 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Good2Go',
-                    style: TextStyle(
-                      fontSize: 32,
+                    style: GoogleFonts.lobster(
+                      fontSize: 48,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -140,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _phoneController,
                     decoration: InputDecoration(
                       labelText: 'เบอร์โทรศัพท์',
+                      labelStyle: GoogleFonts.itim(),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -147,7 +149,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderSide: BorderSide.none,
                       ),
                       prefixIcon: const Icon(Icons.phone),
-                      errorStyle: const TextStyle(color: Colors.white),
+                      errorStyle: GoogleFonts.itim(color: Colors.white),
                     ),
                     keyboardType: TextInputType.phone,
                     validator: _validatePhone,
@@ -157,6 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _passwordController,
                     decoration: InputDecoration(
                       labelText: 'รหัสผ่าน',
+                      labelStyle: GoogleFonts.itim(),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -164,7 +167,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderSide: BorderSide.none,
                       ),
                       prefixIcon: const Icon(Icons.lock),
-                      errorStyle: const TextStyle(color: Colors.white),
+                      errorStyle: GoogleFonts.itim(color: Colors.white),
                     ),
                     obscureText: true,
                     validator: _validatePassword,
@@ -172,11 +175,14 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _login,
-                    child: const Text('เข้าสู่ระบบ'),
+                    child: Text(
+                      'เข้าสู่ระบบ',
+                      style: GoogleFonts.itim(),
+                    ),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.purple, backgroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(
+                      textStyle: GoogleFonts.itim(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -193,9 +199,9 @@ class _LoginPageState extends State<LoginPage> {
                         MaterialPageRoute(builder: (context) => const ChooseRegistrationType()),
                       );
                     },
-                    child: const Text(
+                    child: Text(
                       'สมัครสมาชิก',
-                      style: TextStyle(
+                      style: GoogleFonts.itim(
                         color: Colors.white,
                         fontSize: 16,
                       ),

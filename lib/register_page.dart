@@ -295,8 +295,8 @@
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.purple.shade200,
-                  Colors.purple.shade400,
+                  Colors.white,
+                  Color(0xFF5300F9),
                 ],
               ),
             ),
