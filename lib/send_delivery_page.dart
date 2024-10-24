@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:permission_handler/permission_handler.dart';
 // ignore: unused_import
 import 'location_service.dart';
 
@@ -400,13 +401,14 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
 
     return Container(
       height: 300,
-      child: FlutterMap(
-        options: MapOptions(
-          center: _riderLocations.values.first, // Changed from initialCenter
-          zoom: 13, // Changed from initialZoom
-        ),
-        children: [
-          TileLayer(
+          // Start of Selection
+          child: FlutterMap(
+            options: MapOptions(
+              initialCenter: _riderLocations.values.first, // Changed from initialCenter
+              initialZoom: 13, // Changed from initialZoom
+            ),
+            children: [
+              TileLayer(
             urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             subdomains: const ['a', 'b', 'c'],
           ),

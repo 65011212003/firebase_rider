@@ -827,13 +827,14 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: FlutterMap(
-          options: MapOptions(
-            center: center, // Changed from initialCenter
-            zoom: zoom, // Changed from initialZoom
-          ),
-          children: [
-            TileLayer(
+                // Start of Selection
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: center, // Changed from initialCenter
+                    initialZoom: zoom, // Changed from initialZoom
+                  ),
+                  children: [
+                    TileLayer(
               urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
               subdomains: const ['a', 'b', 'c'],
             ),

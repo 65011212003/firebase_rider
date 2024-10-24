@@ -30,20 +30,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  firebase_storage: ^11.5.6
-  cloud_firestore: ^4.13.6
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  firebase_storage: ^12.3.4
+  cloud_firestore: ^5.4.4
   firebase_core_web: ^2.10.0
   firebase_auth_web: ^5.8.12
   firebase_storage_web: ^3.6.17
-  flutter_map: ^6.1.0
+  flutter_map: ^7.0.2
   latlong2: ^0.9.0
-  flutter_map_marker_popup: ^6.1.2
+  flutter_map_marker_popup: ^7.0.0
   image_picker: ^1.0.5
   permission_handler: ^11.1.0
   intl: ^0.19.0
-  geolocator: ^10.1.0
+  geolocator: ^13.0.1
   http: ^1.1.2
   easy_stepper: ^0.8.3
   flutter_polyline_points: ^2.0.0
@@ -51,7 +51,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

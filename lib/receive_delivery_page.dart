@@ -146,13 +146,14 @@ class _ReceiveDeliveryPageState extends State<ReceiveDeliveryPage> {
                     Container(
                       height: 200,
                       margin: const EdgeInsets.all(16),
-                      child: FlutterMap(
-                        options: MapOptions(
-                          center: riderLocation, // Changed from initialCenter
-                          zoom: 15, // Changed from initialZoom
-                        ),
-                        children: [
-                          TileLayer(
+                          // Start of Selection
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: riderLocation, // Changed from center
+                              initialZoom: 15, // Changed from zoom
+                            ),
+                            children: [
+                              TileLayer(
                             urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                             subdomains: const ['a', 'b', 'c'],
                           ),
