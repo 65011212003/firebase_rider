@@ -48,6 +48,7 @@ dependencies:
   easy_stepper: ^0.8.3
   flutter_polyline_points: ^2.0.0
   google_fonts: ^6.2.1
+  flutter_launcher_icons: ^0.14.1
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,7 @@ flutter:
     - assets/images/user_placeholder.png
     - assets/images/scooter.png
     - assets/images/people.png
+    - assets/images/app_icon.jpeg
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -104,3 +106,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_icons:
+     android: true
+     image_path: "assets/images/app_icon.jpeg"
