@@ -9,6 +9,7 @@ import 'package:easy_stepper/easy_stepper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'location_service.dart';
+import 'dart:async';
 
 class DeliveryDetailPage extends StatefulWidget {
   final String deliveryId;
@@ -27,6 +28,13 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   LatLng? _riderLocation;
   final MapController _mapController = MapController();
   List<LatLng> polylineCoordinates = [];
+  StreamSubscription<DocumentSnapshot>? _deliverySubscription;
+  List<LatLng> _routePoints = [];
+
+  // Add these variables
+  Timer? _locationUpdateTimer;
+  double _estimatedDistance = 0.0;
+  String _estimatedTime = 'Calculating...';
 
   Future<Map<String, dynamic>> findDistance(
       double startLat, double startLong, double endLat, double endLong) async {
@@ -148,6 +156,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
               final GeoPoint location = delivery['riderLocation'];
               riderLocation = LatLng(location.latitude, location.longitude);
             }
+
+            // Initialize tracking when delivery data is available
+            _initializeTracking(delivery);
 
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
@@ -441,6 +452,127 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                                     ),
                                   ],
                                 ),
+                                // Add this widget after _buildDeliveryMap:
+                                if (delivery['status'] == 'delivering' && _riderLocation != null)
+                                  Column(
+                                    children: [
+                                      Container(
+                                        height: 300,
+                                        margin: const EdgeInsets.symmetric(vertical: 16),
+                                        child: FlutterMap(
+                                          options: MapOptions(
+                                            initialCenter: _riderLocation!,
+                                            initialZoom: 15,
+                                          ),
+                                          children: [
+                                            TileLayer(
+                                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                              subdomains: const ['a', 'b', 'c'],
+                                            ),
+                                            if (_routePoints.isNotEmpty)
+                                              PolylineLayer(
+                                                polylines: [
+                                                  Polyline(
+                                                    points: _routePoints,
+                                                    color: Colors.blue,
+                                                    strokeWidth: 3.0,
+                                                  ),
+                                                ],
+                                              ),
+                                            MarkerLayer(
+                                              markers: [
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: LatLng(
+                                                    delivery['pickupLocation'].latitude,
+                                                    delivery['pickupLocation'].longitude,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.location_on,
+                                                    color: Colors.green,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: LatLng(
+                                                    delivery['deliveryLocation'].latitude,
+                                                    delivery['deliveryLocation'].longitude,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.flag,
+                                                    color: Colors.red,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                                Marker(
+                                                  width: 40,
+                                                  height: 40,
+                                                  point: _riderLocation!,
+                                                  child: const Icon(
+                                                    Icons.delivery_dining,
+                                                    color: Colors.blue,
+                                                    size: 40,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Card(
+                                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                            children: [
+                                              Column(
+                                                children: [
+                                                  const Icon(Icons.timer, color: Colors.blue),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Est. Time',
+                                                    style: TextStyle(color: Colors.grey[600]),
+                                                  ),
+                                                  const Text('15-20 min'),
+                                                ],
+                                              ),
+                                              Column(
+                                                children: [
+                                                  const Icon(Icons.directions_bike, color: Colors.blue),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Distance',
+                                                    style: TextStyle(color: Colors.grey[600]),
+                                                  ),
+                                                  const Text('2.5 km'),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                // Inside your build method, where you want to show the tracking interface
+                                // Add this after the delivery progress stepper and before the photos section
+
+                                if (delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') ...[
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Live Tracking:',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildLiveTrackingCard(),
+                                ]
                               ],
                             ),
                           ),
@@ -632,6 +764,10 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   void initState() {
     super.initState();
     _listenToRiderLocation();
+    // Start periodic updates
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _updateEstimates();
+    });
   }
 
   void _listenToRiderLocation() {
@@ -934,6 +1070,209 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       ],
     );
   }
+
+  // Add this method to initialize the tracking
+  void _initializeTracking(Map<String, dynamic> delivery) {
+    if ((delivery['status'] == 'delivering' || delivery['status'] == 'picked_up') && 
+        delivery['riderId'] != null) {
+      _deliverySubscription = FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(widget.deliveryId)
+          .snapshots()
+          .listen((snapshot) async {
+        if (!snapshot.exists) return;
+        
+        final deliveryData = snapshot.data() as Map<String, dynamic>;
+        if (deliveryData['riderLocation'] != null) {
+          final location = deliveryData['riderLocation'] as GeoPoint;
+          final destination = deliveryData['status'] == 'picked_up'
+              ? deliveryData['deliveryLocation'] as GeoPoint
+              : deliveryData['pickupLocation'] as GeoPoint;
+          
+          final routeResult = await findDistance(
+            location.latitude,
+            location.longitude,
+            destination.latitude,
+            destination.longitude,
+          );
+
+          if (mounted) {
+            setState(() {
+              _riderLocation = LatLng(location.latitude, location.longitude);
+              _routePoints = routeResult['routePoints'] as List<LatLng>;
+              _estimatedDistance = routeResult['distance'] as double;
+              final timeInMinutes = (_estimatedDistance / 30) * 60;
+              _estimatedTime = '${timeInMinutes.round()} min';
+            });
+            
+            // Center map on rider location
+            _mapController.move(_riderLocation!, 15);
+          }
+        }
+      });
+    }
+  }
+
+  // Add this method to clean up subscription
+  @override
+  void dispose() {
+    _locationUpdateTimer?.cancel();
+    _deliverySubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _updateEstimates() async {
+    if (_riderLocation != null && mounted) {
+      final delivery = await FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(widget.deliveryId)
+          .get();
+      
+      final data = delivery.data();
+      if (data == null) return;
+
+      final destinationPoint = data['status'] == 'picked_up' 
+          ? data['deliveryLocation']
+          : data['pickupLocation'];
+
+      if (destinationPoint == null) return;
+
+      final result = await findDistance(
+        _riderLocation!.latitude,
+        _riderLocation!.longitude,
+        destinationPoint.latitude,
+        destinationPoint.longitude,
+      );
+
+      if (mounted) {
+        setState(() {
+          _estimatedDistance = result['distance'];
+          // Assuming average speed of 30 km/h
+          final timeInMinutes = (_estimatedDistance / 30) * 60;
+          _estimatedTime = '${timeInMinutes.round()} min';
+        });
+      }
+    }
+  }
+
+  // Add this widget where you want to show the live tracking interface
+  Widget _buildLiveTrackingCard() {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          Container(
+            height: 300,
+            padding: const EdgeInsets.all(8),
+            child: _riderLocation == null 
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _riderLocation!,
+                      initialZoom: 15,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c'],
+                      ),
+                      if (_routePoints.isNotEmpty)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: _routePoints,
+                              color: Colors.blue,
+                              strokeWidth: 4,
+                            ),
+                          ],
+                        ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            width: 50,
+                            height: 50,
+                            point: _riderLocation!,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.3),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.delivery_dining,
+                                color: Colors.blue,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildTrackingInfo(
+                  Icons.timer,
+                  'Estimated Time',
+                  _estimatedTime,
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: Colors.grey[300],
+                ),
+                _buildTrackingInfo(
+                  Icons.directions_bike,
+                  'Distance',
+                  '${_estimatedDistance.toStringAsFixed(1)} km',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackingInfo(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.blue, size: 30),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+  
 }
 
 class LocationMapWidget extends StatefulWidget {

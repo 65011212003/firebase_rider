@@ -339,15 +339,57 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ],
                   ),
-                  if (_selectedLocation != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'Selected Location: ${_selectedLocation!.latitude.toStringAsFixed(4)}, '
-                        '${_selectedLocation!.longitude.toStringAsFixed(4)}',
-                        style: const TextStyle(color: Colors.white),
+                  if (_selectedLocation != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: _selectedLocation!,
+                            initialZoom: 15,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  width: 40,
+                                  height: 40,
+                                  point: _selectedLocation!,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    color: Colors.red,
+                                    size: 40,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Selected Location: ${_selectedLocation!.latitude.toStringAsFixed(4)}, '
+                      '${_selectedLocation!.longitude.toStringAsFixed(4)}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
                   if (widget.isRider) ...[
                     _buildTextField(_vehicleTypeController, 'Vehicle Type'),
                     _buildTextField(_licenseNumberController, 'License Number'),
