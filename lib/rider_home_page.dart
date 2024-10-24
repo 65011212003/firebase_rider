@@ -466,8 +466,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
                       Text(
                         'Distance Rider to Pickup: ${distanceInKm.toStringAsFixed(2)} km',
                         style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
+                          color: Colors.black,
+                          fontSize: 16,
                         ),
                       ),
                     const SizedBox(height: 16),
