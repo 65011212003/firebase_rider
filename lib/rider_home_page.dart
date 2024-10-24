@@ -16,7 +16,7 @@ class RiderHomePage extends StatefulWidget {
   final String riderId;
 
   const RiderHomePage({
-    Key? key, 
+    Key? key,
     required this.riderId,
   }) : super(key: key);
 
@@ -30,7 +30,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
   bool _isLoading = true;
   final LocationService _locationService = LocationService();
   final double _maxDeliveryRadius = 20; // Maximum radius in meters
-  StreamSubscription<Position>? _positionStreamSubscription; // New variable for location stream
+  StreamSubscription<Position>?
+      _positionStreamSubscription; // New variable for location stream
 
   @override
   void initState() {
@@ -41,14 +42,15 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Future<void> _initializeRider() async {
     try {
       // Get current location with high accuracy
-      _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
+      _currentPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
       // Check for active delivery
       final riderDoc = await FirebaseFirestore.instance
           .collection('riders')
           .doc(widget.riderId)
           .get();
-      
+
       if (riderDoc.exists) {
         final riderData = riderDoc.data() as Map<String, dynamic>;
         _activeDeliveryId = riderData['activeDeliveryId'] as String?;
@@ -78,10 +80,14 @@ class _RiderHomePageState extends State<RiderHomePage> {
       distanceFilter: 2, // Update every 10 meters
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen((Position position) {
-      _currentPosition = position;
-      _updateRiderLocationInFirestore(position); // Update Firestore with new location
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen((Position position) {
+      setState(() {
+        _currentPosition = position;
+      });
+      _updateRiderLocationInFirestore(
+          position); // Update Firestore with new location
     });
   }
 
@@ -102,7 +108,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
   @override
   void dispose() {
-    _positionStreamSubscription?.cancel(); // Cancel the subscription to prevent memory leaks
+    _positionStreamSubscription
+        ?.cancel(); // Cancel the subscription to prevent memory leaks
     _locationService.stopTracking(); // Stop tracking location
     super.dispose();
   }
@@ -110,14 +117,14 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Future<bool> _isWithinDeliveryRadius(GeoPoint location) async {
     try {
       if (_currentPosition == null) return false;
-      
+
       final distance = Geolocator.distanceBetween(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
         location.latitude,
         location.longitude,
       );
-      
+
       return distance <= _maxDeliveryRadius;
     } catch (e) {
       print('Error calculating delivery radius: $e');
@@ -131,12 +138,12 @@ class _RiderHomePageState extends State<RiderHomePage> {
           .collection('deliveries')
           .doc(deliveryId)
           .get();
-      
+
       if (!deliveryDoc.exists) return;
-      
+
       final deliveryData = deliveryDoc.data() as Map<String, dynamic>;
       final pickupLocation = deliveryData['pickupLocation'] as GeoPoint?;
-      
+
       // Add null check for pickupLocation
       if (pickupLocation == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -184,7 +191,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
       // Start location tracking
       _locationService.startTracking(widget.riderId, deliveryId);
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -199,7 +205,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
     if (_activeDeliveryId == null) return;
 
     try {
-      if ((status == 'picked_up' || status == 'completed') && 
+      if ((status == 'picked_up' || status == 'completed') &&
           !await _takeAndUploadPhoto(status)) {
         return;
       }
@@ -212,7 +218,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
       // Only add location if we can get it
       try {
         final position = await Geolocator.getCurrentPosition();
-        updateData['riderLocation'] = GeoPoint(position.latitude, position.longitude);
+        updateData['riderLocation'] =
+            GeoPoint(position.latitude, position.longitude);
       } catch (e) {
         print('Error getting location: $e');
         // Continue without location if we can't get it
@@ -258,7 +265,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
         source: ImageSource.camera,
         imageQuality: 85,
       );
-      
+
       if (image == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -273,7 +280,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
           .ref()
           .child('delivery_photos')
           .child('${_activeDeliveryId}_${status}.jpg');
-      
+
       await ref.putFile(File(image.path));
       final photoUrl = await ref.getDownloadURL();
 
@@ -307,7 +314,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
     }
 
     return WillPopScope(
-      onWillPop: () async => false, // Prevent back navigation when delivery is active
+      onWillPop: () async =>
+          false, // Prevent back navigation when delivery is active
       child: Scaffold(
         appBar: AppBar(
           title: const Text(
@@ -412,39 +420,107 @@ class _RiderHomePageState extends State<RiderHomePage> {
           itemBuilder: (context, index) {
             final delivery = deliveries[index].data() as Map<String, dynamic>;
             final deliveryId = deliveries[index].id;
+            final pickupLocation = delivery['pickupLocation'] as GeoPoint?;
+            final riderLocation = _currentPosition;
+
+            double distanceInKm = 0.0;
+            if (pickupLocation != null && riderLocation != null) {
+              distanceInKm = Geolocator.distanceBetween(
+                riderLocation.latitude,
+                riderLocation.longitude,
+                pickupLocation.latitude,
+                pickupLocation.longitude,
+              ) / 1000; // Convert to kilometers
+            }
 
             return Card(
               margin: const EdgeInsets.symmetric(
-                vertical: 4,
-                horizontal: 8,
+                vertical: 8,
+                horizontal: 16,
               ),
-              elevation: 2,
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                title: Text(
-                  'Delivery #$deliveryId',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  'Status: ${delivery['status']}',
-                  style: const TextStyle(
-                    color: Colors.grey,
-                  ),
-                ),
-                trailing: ElevatedButton(
-                  onPressed: () => _acceptDelivery(deliveryId),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Delivery #$deliveryId',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
-                  ),
-                  child: const Text('Accept'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Status: ${delivery['status']}',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (pickupLocation != null && riderLocation != null)
+                      Text(
+                        'Distance Rider to Pickup: ${distanceInKm.toStringAsFixed(2)} km',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _acceptDelivery(deliveryId),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Accept'),
+                        ),
+                        if (pickupLocation != null)
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => Scaffold(
+                                    appBar: AppBar(
+                                      title: const Text('Pickup Location'),
+                                    ),
+                                    body: LocationMapWidget(
+                                      pickupLocation: LatLng(pickupLocation.latitude, pickupLocation.longitude),
+                                      deliveryLocation: LatLng(pickupLocation.latitude, pickupLocation.longitude),
+                                      riderLocation: riderLocation != null
+                                          ? LatLng(riderLocation.latitude, riderLocation.longitude)
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Show Map'),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             );
@@ -457,13 +533,14 @@ class _RiderHomePageState extends State<RiderHomePage> {
   Widget _buildDeliveryMap(Map<String, dynamic> delivery) {
     final pickupLocation = delivery['pickupLocation'] as GeoPoint?;
     final deliveryLocation = delivery['deliveryLocation'] as GeoPoint?;
-    
+
     if (pickupLocation == null || deliveryLocation == null) {
       return const SizedBox.shrink();
     }
 
     final pickup = LatLng(pickupLocation.latitude, pickupLocation.longitude);
-    final destination = LatLng(deliveryLocation.latitude, deliveryLocation.longitude);
+    final destination =
+        LatLng(deliveryLocation.latitude, deliveryLocation.longitude);
 
     return Container(
       height: 300,
@@ -471,6 +548,9 @@ class _RiderHomePageState extends State<RiderHomePage> {
       child: LocationMapWidget(
         pickupLocation: pickup,
         deliveryLocation: destination,
+        riderLocation: _currentPosition != null
+            ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+            : null,
       ),
     );
   }
@@ -511,14 +591,20 @@ class _RiderHomePageState extends State<RiderHomePage> {
             _buildInfoRow('Status', delivery['status']),
             _buildInfoRow('Sender', delivery['senderName'] ?? 'N/A'),
             _buildInfoRow('Recipient', delivery['recipientName'] ?? 'N/A'),
-            _buildInfoRow('Pickup Address', delivery['pickupAddress'] ?? 'N/A'), 
-            _buildInfoRow('Delivery Address', delivery['deliveryAddress'] ?? 'N/A'),
-            _buildInfoRow('Created At', delivery['createdAt']?.toDate().toString() ?? 'N/A'),
-            _buildInfoRow('Pickup Time', delivery['pickupTime']?.toDate().toString() ?? 'N/A'),
-            _buildInfoRow('Delivery Time', delivery['deliveryTime']?.toDate().toString() ?? 'N/A'),
-            _buildInfoRow('Total Items', (delivery['items'] as List?)?.length.toString() ?? '0'),
+            _buildInfoRow('Pickup Address', delivery['pickupAddress'] ?? 'N/A'),
+            _buildInfoRow(
+                'Delivery Address', delivery['deliveryAddress'] ?? 'N/A'),
+            _buildInfoRow('Created At',
+                delivery['createdAt']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Pickup Time',
+                delivery['pickupTime']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Delivery Time',
+                delivery['deliveryTime']?.toDate().toString() ?? 'N/A'),
+            _buildInfoRow('Total Items',
+                (delivery['items'] as List?)?.length.toString() ?? '0'),
             _buildInfoRow('Notes', delivery['notes'] ?? 'N/A'),
-            if (delivery['pickupPhotoUrl'] != null || delivery['deliveryPhotoUrl'] != null)
+            if (delivery['pickupPhotoUrl'] != null ||
+                delivery['deliveryPhotoUrl'] != null)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -556,7 +642,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
             const SizedBox(height: 8),
             // Replace the existing ListView.builder for items with this updated version
             Container(
-              constraints: const BoxConstraints(maxHeight: 300), // Increased height for better visibility
+              constraints: const BoxConstraints(
+                  maxHeight: 300), // Increased height for better visibility
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const ClampingScrollPhysics(),
@@ -591,14 +678,19 @@ class _RiderHomePageState extends State<RiderHomePage> {
                               child: Image.network(
                                 item['imageUrl'],
                                 fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
                                   return Center(
                                     child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
-                                          : null,
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
                                     ),
                                   );
                                 },
@@ -619,6 +711,28 @@ class _RiderHomePageState extends State<RiderHomePage> {
                   );
                 },
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                final pickupLocation = delivery['pickupLocation'] as GeoPoint?;
+                if (pickupLocation != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => Scaffold(
+                        appBar: AppBar(
+                          title: const Text('Pickup Location'),
+                        ),
+                        body: LocationMapWidget(
+                          pickupLocation: LatLng(pickupLocation.latitude, pickupLocation.longitude),
+                          deliveryLocation: LatLng(pickupLocation.latitude, pickupLocation.longitude),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('View Pickup Location on Map'),
             ),
           ],
         ),
@@ -656,12 +770,13 @@ class _RiderHomePageState extends State<RiderHomePage> {
     final ButtonStyle buttonStyle = ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(
         horizontal: 16, // Reduced horizontal padding
-        vertical: 12,   // Reduced vertical padding
+        vertical: 12, // Reduced vertical padding
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
-      minimumSize: const Size(120, 40), // Set minimum size instead of using constraints
+      minimumSize:
+          const Size(120, 40), // Set minimum size instead of using constraints
     );
 
     switch (status) {
@@ -811,11 +926,13 @@ class _RiderHomePageState extends State<RiderHomePage> {
 class LocationMapWidget extends StatefulWidget {
   final LatLng pickupLocation;
   final LatLng deliveryLocation;
+  final LatLng? riderLocation;
 
   const LocationMapWidget({
     Key? key,
     required this.pickupLocation,
     required this.deliveryLocation,
+    this.riderLocation,
   }) : super(key: key);
 
   @override
@@ -848,7 +965,8 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
       (widget.pickupLocation.longitude + widget.deliveryLocation.longitude) / 2,
     );
 
-    final distance = _calculateDistance(widget.pickupLocation, widget.deliveryLocation);
+    final distance =
+        _calculateDistance(widget.pickupLocation, widget.deliveryLocation);
     final zoom = _calculateZoomLevel(distance);
 
     return Container(
@@ -864,14 +982,13 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-                // Start of Selection
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: center, // Changed from initialCenter
-                    initialZoom: zoom, // Changed from initialZoom
-                  ),
-                  children: [
-                    TileLayer(
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: center, // Use the correct parameter name
+            initialZoom: zoom,
+          ),
+          children: [
+            TileLayer(
               urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
               subdomains: const ['a', 'b', 'c'],
             ),
@@ -906,6 +1023,17 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
                     size: 40,
                   ),
                 ),
+                if (widget.riderLocation != null)
+                  Marker(
+                    width: 40.0,
+                    height: 40.0,
+                    point: widget.riderLocation!,
+                    child: const Icon(
+                      Icons.directions_bike,
+                      color: Colors.blue,
+                      size: 40,
+                    ),
+                  ),
               ],
             ),
           ],
@@ -917,9 +1045,12 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
   double _calculateDistance(LatLng point1, LatLng point2) {
     var p = 0.017453292519943295;
     var c = cos;
-    var a = 0.5 - c((point2.latitude - point1.latitude) * p)/2 + 
-            c(point1.latitude * p) * c(point2.latitude * p) * 
-            (1 - c((point2.longitude - point1.longitude) * p))/2;
+    var a = 0.5 -
+        c((point2.latitude - point1.latitude) * p) / 2 +
+        c(point1.latitude * p) *
+            c(point2.latitude * p) *
+            (1 - c((point2.longitude - point1.longitude) * p)) /
+            2;
     return 12742 * asin(sqrt(a));
   }
 
