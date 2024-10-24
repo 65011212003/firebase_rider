@@ -1,14 +1,14 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
-import 'dart:math' show cos, sqrt, asin;
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'location_service.dart';
 import 'dart:async';
 
 class DeliveryDetailPage extends StatefulWidget {
@@ -781,7 +781,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   }
 
   void _listenToRiderLocation() {
-    FirebaseFirestore.instance
+    _deliverySubscription = FirebaseFirestore.instance
         .collection('deliveries')
         .doc(widget.deliveryId)
         .snapshots()
@@ -808,6 +808,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
               }
             }
           });
+        }
+        if (data?['status'] == 'completed') {
+          _deliverySubscription?.cancel();
         }
       }
     });

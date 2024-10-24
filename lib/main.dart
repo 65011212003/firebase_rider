@@ -6,9 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'login_page.dart';
 import 'firebase_options.dart';
 import 'register_page.dart';
-import 'send_delivery_page.dart';
 import 'delivery_history_page.dart';
-import 'rider_home_page.dart';
 import 'receive_delivery_page.dart';
 import 'select_recipient_page.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -285,12 +283,16 @@ class _MyHomePageState extends State<MyHomePage> {
   void _navigateToMap() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MapPage()),
+      MaterialPageRoute(builder: (context) => MapPage(phone: widget.phone)),
     );
   }
 }
 
 class MapPage extends StatelessWidget {
+  final String phone;
+
+  MapPage({required this.phone});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -302,6 +304,7 @@ class MapPage extends StatelessWidget {
         future: FirebaseFirestore.instance
             .collection('deliveries')
             .where('status', isEqualTo: 'pending')
+            .where('senderId', isEqualTo: phone) // Use the passed phone parameter
             .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

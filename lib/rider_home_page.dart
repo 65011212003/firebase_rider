@@ -111,9 +111,6 @@ class _RiderHomePageState extends State<RiderHomePage> {
     try {
       if (_currentPosition == null) return false;
       
-      // Ensure location is not null before accessing its properties
-      if (location == null) return false;
-      
       final distance = Geolocator.distanceBetween(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
