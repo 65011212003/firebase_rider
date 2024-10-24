@@ -1,15 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 // ignore: unused_import
 import 'location_service.dart';
-// Add this import at the top of the file with other imports
-import 'dart:async';
 
 class DeliveryItem {
   String description;
