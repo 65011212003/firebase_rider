@@ -10,6 +10,7 @@ import 'location_service.dart';
 import 'login_page.dart';
 import 'dart:math' show cos, sqrt, asin;
 import 'package:intl/intl.dart';
+import 'dart:async'; // Add this import for StreamSubscription
 
 class RiderHomePage extends StatefulWidget {
   final String riderId;
@@ -28,7 +29,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
   String? _activeDeliveryId;
   bool _isLoading = true;
   final LocationService _locationService = LocationService();
-  final double _maxDeliveryRadius = 20; // Maximum radius in meters
+  final double _maxDeliveryRadius = 200; // Maximum radius in meters
+  StreamSubscription<Position>? _positionStreamSubscription; // New variable for location stream
 
   @override
   void initState() {
@@ -38,8 +40,8 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
   Future<void> _initializeRider() async {
     try {
-      // Get current location
-      _currentPosition = await Geolocator.getCurrentPosition();
+      // Get current location with high accuracy
+      _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
       // Check for active delivery
       final riderDoc = await FirebaseFirestore.instance
@@ -54,6 +56,7 @@ class _RiderHomePageState extends State<RiderHomePage> {
 
       // Start location tracking if there's an active delivery
       if (_activeDeliveryId != null) {
+        _startLocationUpdates(); // Start listening to location changes
         _locationService.startTracking(widget.riderId, _activeDeliveryId!);
       }
 
@@ -66,6 +69,42 @@ class _RiderHomePageState extends State<RiderHomePage> {
         _isLoading = false;
       });
     }
+  }
+
+  // New method to start listening to location updates
+  void _startLocationUpdates() {
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Update every 10 meters
+    );
+
+    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position position) {
+      _currentPosition = position;
+      _updateRiderLocationInFirestore(position); // Update Firestore with new location
+    });
+  }
+
+  // New method to update rider's location in Firestore
+  Future<void> _updateRiderLocationInFirestore(Position position) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('riders')
+          .doc(widget.riderId)
+          .update({
+        'location': GeoPoint(position.latitude, position.longitude),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating rider location: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel(); // Cancel the subscription to prevent memory leaks
+    _locationService.stopTracking(); // Stop tracking location
+    super.dispose();
   }
 
   Future<bool> _isWithinDeliveryRadius(GeoPoint location) async {
@@ -463,8 +502,9 @@ class _RiderHomePageState extends State<RiderHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Corrected the delivery ID reference
             Text(
-              'Delivery #${delivery['id']}',
+              'Delivery #${_activeDeliveryId}', // Changed from delivery['id']
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -894,4 +934,3 @@ class _LocationMapWidgetState extends State<LocationMapWidget> {
     return 8;
   }
 }
-
