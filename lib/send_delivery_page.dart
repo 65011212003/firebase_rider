@@ -203,7 +203,7 @@ class _SendDeliveryPageState extends State<SendDeliveryPage> {
                   children: <Widget>[
                     Icon(Icons.check_circle, color: Colors.green, size: 64),
                     SizedBox(height: 20),
-                    Text('คำขอจัด่งของคุณได้รับการยืนยันเรียบร้อยแล้ว'),
+                    Text('คำขอจัดส่งของคุณได้รับการยืนยันเรียบร้อยแล้ว'),
                   ],
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'register_page.dart';
 
 class ChooseRegistrationType extends StatelessWidget {
@@ -12,17 +13,17 @@ class ChooseRegistrationType extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.purple.shade200, Colors.purple.shade400],
+            colors: [Colors.white, Color(0xFF5300F9)],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               const SizedBox(height: 40),
-              const Text(
+              Text(
                 'Good2Go',
-                style: TextStyle(
-                  fontSize: 32,
+                style: GoogleFonts.lobster(
+                  fontSize: 50,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -30,59 +31,65 @@ class ChooseRegistrationType extends StatelessWidget {
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const RegisterPage(isRider: true)),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.purple,
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                child: Card(
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterPage(isRider: true)),
+                                );
+                              },
+                              child: Column(
+                                children: [
+                                  Image.asset('assets/images/scooter.png',
+                                      width: 100),
+                                  const SizedBox(height: 8),
+                                  const Text('ไรเดอร์',
+                                      style: TextStyle(
+                                          fontSize: 18, color: Colors.black)),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterPage(isRider: false)),
+                                );
+                              },
+                              child: Column(
+                                children: [
+                                  Image.asset('assets/images/people.png',
+                                      width: 100),
+                                  const SizedBox(height: 8),
+                                  const Text('ผู้ใช้ทั่วไป',
+                                      style: TextStyle(
+                                          fontSize: 18, color: Colors.black)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.motorcycle, color: Colors.purple.shade400),
-                          const SizedBox(width: 8),
-                          const Text('โรเดอร์', style: TextStyle(fontSize: 18)),
-                        ],
-                      ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const RegisterPage(isRider: false)),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.purple,
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.people, color: Colors.purple.shade400),
-                          const SizedBox(width: 8),
-                          const Text('ผู้ใช้งาน', style: TextStyle(fontSize: 18)),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

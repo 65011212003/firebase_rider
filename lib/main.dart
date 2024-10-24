@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'login_page.dart';
 import 'firebase_options.dart';
 import 'register_page.dart';
@@ -57,7 +59,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<DocumentSnapshot> _fetchUserData() async {
     final collection = widget.isRider ? 'riders' : 'users';
-    return FirebaseFirestore.instance.collection(collection).doc(widget.phone).get();
+    return FirebaseFirestore.instance
+        .collection(collection)
+        .doc(widget.phone)
+        .get();
   }
 
   void _editProfile() {
@@ -101,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final userSnapshot = await _userFuture;
       final userData = userSnapshot.data() as Map<String, dynamic>?;
       final userName = userData?['name'] ?? 'User';
-      
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -169,11 +174,14 @@ class _MyHomePageState extends State<MyHomePage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: GoogleFonts.itim()));
+            return Center(
+                child: Text('Error: ${snapshot.error}',
+                    style: GoogleFonts.itim()));
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return Center(child: Text('User data not found', style: GoogleFonts.itim()));
+            return Center(
+                child: Text('User data not found', style: GoogleFonts.itim()));
           }
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
@@ -187,21 +195,25 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Text(
                     'Welcome, $userName!',
-                    style: GoogleFonts.itim(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(
+                        fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Order your favourite food!',
-                    style: GoogleFonts.itim(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 24),
                   DeliveryBanner(),
                   const SizedBox(height: 24),
                   Text(
                     'Menus',
-                    style: GoogleFonts.itim(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.itim(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
+                  // Start of Selection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -219,6 +231,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         Colors.indigo,
                         _navigateToDeliveryHistory,
                       ),
+                      _buildMenuButton(
+                        context,
+                        Icons.map,
+                        'Map',
+                        Colors.green,
+                        _navigateToMap,
+                      ),
                     ],
                   ),
                 ],
@@ -230,7 +249,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildMenuButton(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildMenuButton(BuildContext context, IconData icon, String label,
+      Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -247,6 +267,78 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(height: 8),
           Text(label, style: GoogleFonts.itim(fontWeight: FontWeight.bold)),
         ],
+      ),
+    );
+  }
+
+  void _navigateToMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => MapPage()),
+    );
+  }
+}
+
+class MapPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Delivery Map (Pending)'),
+      ),
+      body: FutureBuilder<QuerySnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('deliveries')
+            .where('status', isEqualTo: 'pending')
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(child: Text('No pending deliveries found.'));
+          }
+
+          final deliveries = snapshot.data!.docs;
+
+          return FlutterMap(
+            options: MapOptions(
+              initialCenter: LatLng(13.7563, 100.5018), // Centered around Bangkok
+              initialZoom: 13.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: ['a', 'b', 'c'],
+              ),
+              MarkerLayer(
+                markers: deliveries.map((delivery) {
+                  final data = delivery.data() as Map<String, dynamic>;
+                  final pickupLocation = data['pickupLocation'];
+                  if (pickupLocation is GeoPoint) {
+                    return Marker(
+                      width: 80.0,
+                      height: 80.0,
+                      point: LatLng(pickupLocation.latitude, pickupLocation.longitude),
+                      child: Icon(Icons.location_on, color: Colors.red, size: 40),
+                    );
+                  } else {
+                    return Marker(
+                      width: 80.0,
+                      height: 80.0,
+                      point: LatLng(0, 0), // Default location in case of error
+                      child: Icon(Icons.error, color: Colors.red, size: 40),
+                    );
+                  }
+                }).toList(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
